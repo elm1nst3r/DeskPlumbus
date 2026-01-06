@@ -80,14 +80,20 @@ MAX_DEVICES = 2000
 MIN_SSIDS_FOR_FINGERPRINT = 3
 
 # ===========================
-# Location Detection Settings
+# Location Detection Settings (Phase 3)
 # ===========================
 
-# Minimum networks required for location fingerprint
+# Minimum networks (BSSIDs) required for location fingerprint
 MIN_NETWORKS_FOR_LOCATION = 3
+MIN_BSSIDS_FOR_LOCATION = MIN_NETWORKS_FOR_LOCATION  # Alias for clarity
 
-# Location confidence threshold (percentage)
-LOCATION_CONFIDENCE_THRESHOLD = 70.0
+# Location similarity threshold (Jaccard coefficient)
+# 0.60 = 60% similarity required for location match (lower than device matching
+# because WiFi environments can vary more over time as APs come and go)
+LOCATION_SIMILARITY_THRESHOLD = 0.60
+
+# Location confidence threshold (percentage) - deprecated, use LOCATION_SIMILARITY_THRESHOLD
+LOCATION_CONFIDENCE_THRESHOLD = LOCATION_SIMILARITY_THRESHOLD * 100
 
 # Maximum locations to track
 MAX_LOCATIONS = 500

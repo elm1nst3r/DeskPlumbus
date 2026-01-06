@@ -171,7 +171,7 @@
         <div class="header">
             <h1>🛸 WiFi Desk Plumbus 🛸</h1>
             <p>Everyone has one... now you do too!</p>
-            <span class="phase-badge" id="phaseBadge">Phase 1: Core WiFi Monitoring</span>
+            <span class="phase-badge" id="phaseBadge">Phase 3: Location Detection Active!</span>
         </div>
 
         <div class="card">
@@ -229,6 +229,64 @@
         </div>
 
         <div class="card">
+            <h2>Fingerprinting Statistics (Phase 2)</h2>
+            <div id="fingerprintingLoading" class="loading">Loading fingerprinting stats...</div>
+            <div id="fingerprintingContent" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <h3>Total Fingerprints</h3>
+                        <p id="totalFingerprints">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Tracked MAC Addresses</h3>
+                        <p id="totalMacs">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Probes Processed</h3>
+                        <p id="probesProcessed">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Avg SSIDs per Device</h3>
+                        <p id="avgSsids">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Fingerprints Created</h3>
+                        <p id="fingerprintsCreated">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Fingerprints Matched</h3>
+                        <p id="fingerprintsMatched">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Current Location (Phase 3)</h2>
+            <div id="locationLoading" class="loading">Loading location...</div>
+            <div id="locationContent" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <h3>Location</h3>
+                        <p id="currentLocation">Unknown</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Total Locations</h3>
+                        <p id="totalLocations">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Networks Visible</h3>
+                        <p id="networksVisible">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Avg Networks/Location</h3>
+                        <p id="avgNetworks">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
             <h2>Implementation Progress</h2>
             <ul class="features-list">
                 <li class="completed">Database schema and initialization</li>
@@ -236,8 +294,12 @@
                 <li class="completed">Scapy packet capture for probe requests</li>
                 <li class="completed">Network scanner for beacon frames</li>
                 <li class="completed">Basic Flask web application</li>
-                <li class="pending">SSID pool fingerprinting (Phase 2)</li>
-                <li class="pending">Location detection (Phase 3)</li>
+                <li class="completed">SSID pool fingerprinting (Phase 2)</li>
+                <li class="completed">Jaccard similarity matching (Phase 2)</li>
+                <li class="completed">MAC randomization detection (Phase 2)</li>
+                <li class="completed">BSSID pool location fingerprinting (Phase 3)</li>
+                <li class="completed">Automatic location detection (Phase 3)</li>
+                <li class="completed">Location tracking & management (Phase 3)</li>
                 <li class="pending">Following device detection (Phase 4)</li>
                 <li class="pending">Real-time WebSocket updates (Phase 5)</li>
                 <li class="pending">Advanced analytics & Chart.js (Phase 5)</li>
@@ -245,7 +307,7 @@
         </div>
 
         <div class="footer">
-            <p>WiFi Desk Plumbus v1.0.0 - Phase 1</p>
+            <p>WiFi Desk Plumbus v1.0.0 - Phase 3 (Location Detection)</p>
             <p>Everyone has one! 🛸</p>
             <p style="margin-top: 10px; font-size: 0.9em;">
                 <em>"I always wondered how Plumbuses got made..."</em> - Interdimensional Cable
@@ -295,16 +357,75 @@
             }
         }
 
+        // Fetch and display fingerprinting statistics (Phase 2)
+        async function loadFingerprintingStatistics() {
+            try {
+                const response = await fetch('/api/fingerprints/statistics');
+                const data = await response.json();
+
+                document.getElementById('totalFingerprints').textContent = data.total_fingerprints;
+                document.getElementById('totalMacs').textContent = data.total_mac_addresses;
+                document.getElementById('probesProcessed').textContent = data.probes_processed;
+                document.getElementById('avgSsids').textContent = data.average_ssids_per_device;
+                document.getElementById('fingerprintsCreated').textContent = data.fingerprints_created;
+                document.getElementById('fingerprintsMatched').textContent = data.fingerprints_matched;
+
+                document.getElementById('fingerprintingLoading').style.display = 'none';
+                document.getElementById('fingerprintingContent').style.display = 'block';
+            } catch (error) {
+                document.getElementById('fingerprintingLoading').innerHTML = `
+                    <div class="error">Error loading fingerprinting stats: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Fetch and display location data (Phase 3)
+        async function loadLocationData() {
+            try {
+                // Load current location
+                const currentResponse = await fetch('/api/locations/current');
+                const currentData = await currentResponse.json();
+
+                // Load location statistics
+                const statsResponse = await fetch('/api/locations/statistics');
+                const statsData = await statsResponse.json();
+
+                // Update current location display
+                if (currentData.location_id) {
+                    document.getElementById('currentLocation').textContent = currentData.name;
+                    document.getElementById('networksVisible').textContent = currentData.bssid_count;
+                } else {
+                    document.getElementById('currentLocation').textContent = 'Unknown';
+                    document.getElementById('networksVisible').textContent = '-';
+                }
+
+                // Update location statistics
+                document.getElementById('totalLocations').textContent = statsData.total_locations;
+                document.getElementById('avgNetworks').textContent = statsData.average_bssids_per_location;
+
+                document.getElementById('locationLoading').style.display = 'none';
+                document.getElementById('locationContent').style.display = 'block';
+            } catch (error) {
+                document.getElementById('locationLoading').innerHTML = `
+                    <div class="error">Error loading location data: ${error.message}</div>
+                `;
+            }
+        }
+
         // Load data on page load
         window.addEventListener('DOMContentLoaded', () => {
-            console.log('WiFi Desk Plumbus - Everyone has one!');
+            console.log('WiFi Desk Plumbus - Phase 3: Location Detection Active!');
             loadStatus();
             loadStatistics();
+            loadFingerprintingStatistics();
+            loadLocationData();
 
             // Refresh every 5 seconds
             setInterval(() => {
                 loadStatus();
                 loadStatistics();
+                loadFingerprintingStatistics();
+                loadLocationData();
             }, 5000);
         });
     </script>

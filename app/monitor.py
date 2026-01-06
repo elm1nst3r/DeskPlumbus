@@ -28,6 +28,8 @@ try:
 except ImportError:
     SCAPY_AVAILABLE = False
     logging.warning("Scapy not available - WiFi monitoring will not work")
+    # Define placeholder types when Scapy is not available
+    Packet = Any
 
 import config
 

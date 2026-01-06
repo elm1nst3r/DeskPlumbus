@@ -41,8 +41,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def print_phase1_banner():
-    """Print the Phase 1 banner."""
+def print_phase3_banner():
+    """Print the Phase 3 banner."""
     banner = """
     ╔═══════════════════════════════════════════════════════════╗
     ║                                                           ║
@@ -53,8 +53,9 @@ def print_phase1_banner():
     ║    ██║     ███████╗╚██████╔╝██║ ╚═╝ ██║██████╔╝╚██████╔╝ ║
     ║    ╚═╝     ╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═════╝  ╚═════╝  ║
     ║                                                           ║
-    ║           PHASE 1: Core WiFi Monitoring Active           ║
+    ║           PHASE 3: Location Detection Active!            ║
     ║      Plumbus Sentinel initialized... Everyone has one!   ║
+    ║    🛸 Tracking devices & locations across WiFi! 🛸        ║
     ║                                                           ║
     ╚═══════════════════════════════════════════════════════════╝
     """
@@ -135,6 +136,51 @@ def init_database():
         return False
 
 
+def init_fingerprinting():
+    """Initialize Phase 2 fingerprinting system."""
+    try:
+        from app.fingerprint_manager import init_fingerprint_manager
+
+        logger.info("Initializing SSID Fingerprinting (Phase 2)...")
+        manager = init_fingerprint_manager()
+
+        stats = manager.get_statistics()
+        logger.info(f"Fingerprinting initialized: {stats['total_fingerprints']} fingerprints loaded")
+        logger.info(f"Jaccard similarity threshold: {stats['similarity_threshold'] * 100}%")
+        logger.info("🛸 Plumbus can now detect MAC randomization!")
+
+        return manager
+
+    except Exception as e:
+        logger.error(f"Failed to initialize fingerprinting: {e}", exc_info=True)
+        return None
+
+
+def init_location_detection(fingerprint_manager):
+    """Initialize Phase 3 location detection system."""
+    try:
+        from app.location import init_location_detector
+
+        logger.info("Initializing Location Detection (Phase 3)...")
+        detector = init_location_detector()
+
+        # Connect to fingerprint manager
+        if fingerprint_manager:
+            fingerprint_manager.set_location_detector(detector)
+            logger.info("Location detector connected to fingerprint manager")
+
+        stats = detector.get_statistics()
+        logger.info(f"Location detection initialized: {stats['total_locations']} locations loaded")
+        logger.info(f"Location similarity threshold: {stats['similarity_threshold'] * 100}%")
+        logger.info("🛸 Plumbus can now track physical locations!")
+
+        return detector
+
+    except Exception as e:
+        logger.error(f"Failed to initialize location detection: {e}", exc_info=True)
+        return None
+
+
 def start_flask_server():
     """Start the Flask web server."""
     try:
@@ -178,10 +224,10 @@ def start_flask_server():
 
 
 def main():
-    """Main entry point for Phase 1."""
-    print_phase1_banner()
+    """Main entry point for Phase 3."""
+    print_phase3_banner()
 
-    logger.info("Starting WiFi Desk Plumbus - Phase 1")
+    logger.info("Starting WiFi Desk Plumbus - Phase 3")
     logger.info(f"Version: {config.APP_VERSION}")
     logger.info(f"Project directory: {PROJECT_ROOT}")
 
@@ -195,13 +241,27 @@ def main():
         logger.error("Database initialization failed!")
         sys.exit(1)
 
+    # Initialize fingerprinting (Phase 2)
+    fingerprint_manager = init_fingerprinting()
+    if not fingerprint_manager:
+        logger.warning("Fingerprinting initialization failed - continuing without Phase 2 features")
+
+    # Initialize location detection (Phase 3)
+    location_detector = init_location_detection(fingerprint_manager)
+    if not location_detector:
+        logger.warning("Location detection initialization failed - continuing without Phase 3 features")
+
     # Print configuration summary
     logger.info("=" * 60)
     logger.info("CONFIGURATION SUMMARY")
     logger.info("=" * 60)
+    logger.info(f"Phase: 3 (Location Detection)")
     logger.info(f"WiFi Interface: {config.WIFI_INTERFACE}")
     logger.info(f"Scan Interval: {config.SCAN_INTERVAL} seconds")
-    logger.info(f"Similarity Threshold: {config.SIMILARITY_THRESHOLD * 100}%")
+    logger.info(f"Device Similarity Threshold: {config.SIMILARITY_THRESHOLD * 100}%")
+    logger.info(f"Location Similarity Threshold: {config.LOCATION_SIMILARITY_THRESHOLD * 100}%")
+    logger.info(f"Min SSIDs for Fingerprint: {config.MIN_SSIDS_FOR_FINGERPRINT}")
+    logger.info(f"Min BSSIDs for Location: {config.MIN_BSSIDS_FOR_LOCATION}")
     logger.info(f"Data Retention: {config.DATA_RETENTION_DAYS} days")
     logger.info(f"Flask Port: {config.FLASK_PORT}")
     logger.info(f"Debug Mode: {config.DEBUG}")
@@ -216,7 +276,9 @@ def main():
     logger.info("  - Monitor mode support (Raspberry Pi)")
     logger.info("  - Scapy library")
     logger.info("")
-    logger.info("Phase 1 includes database and web interface.")
+    logger.info("Phase 3 includes location detection using WiFi network fingerprints!")
+    logger.info("  - Phase 2: SSID fingerprinting defeats MAC randomization")
+    logger.info("  - Phase 3: Location tracking via visible WiFi networks")
     logger.info("Active WiFi monitoring will be enabled when running on Raspberry Pi with sudo.")
     logger.info("")
 

@@ -206,6 +206,137 @@ def register_routes(app: Flask):
             logger.error(f"Error getting alerts: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
+    @app.route('/api/fingerprints')
+    def api_fingerprints():
+        """
+        Get all device fingerprints (Phase 2).
+
+        Returns:
+            JSON with fingerprint list
+        """
+        try:
+            # Import here to avoid circular dependency
+            from app.fingerprint_manager import get_fingerprint_manager
+
+            manager = get_fingerprint_manager()
+            devices = manager.get_device_list()
+
+            return jsonify({
+                'fingerprints': devices,
+                'count': len(devices)
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting fingerprints: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/fingerprints/statistics')
+    def api_fingerprint_statistics():
+        """
+        Get fingerprinting statistics (Phase 2).
+
+        Returns:
+            JSON with fingerprinting stats
+        """
+        try:
+            from app.fingerprint_manager import get_fingerprint_manager
+
+            manager = get_fingerprint_manager()
+            stats = manager.get_statistics()
+
+            return jsonify(stats)
+
+        except Exception as e:
+            logger.error(f"Error getting fingerprint statistics: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/locations')
+    def api_locations():
+        """
+        Get all locations (Phase 3).
+
+        Returns:
+            JSON with location list
+        """
+        try:
+            from app.location import get_location_detector
+
+            detector = get_location_detector()
+            locations = []
+
+            for location_id, location in detector.locations.items():
+                locations.append({
+                    'location_id': location.location_id,
+                    'name': location.name,
+                    'bssid_count': location.bssid_pool.size(),
+                    'first_detected': location.first_detected,
+                    'last_detected': location.last_detected,
+                    'detection_count': location.detection_count,
+                    'is_current': location_id == detector.current_location_id
+                })
+
+            # Sort by last detected (most recent first)
+            locations.sort(key=lambda x: x['last_detected'], reverse=True)
+
+            return jsonify({
+                'locations': locations,
+                'count': len(locations)
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting locations: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/locations/current')
+    def api_current_location():
+        """
+        Get current location (Phase 3).
+
+        Returns:
+            JSON with current location or null
+        """
+        try:
+            from app.location import get_location_detector
+
+            detector = get_location_detector()
+            current = detector.get_current_location()
+
+            if current:
+                return jsonify({
+                    'location_id': current.location_id,
+                    'name': current.name,
+                    'bssid_count': current.bssid_pool.size(),
+                    'first_detected': current.first_detected,
+                    'last_detected': current.last_detected,
+                    'detection_count': current.detection_count
+                })
+            else:
+                return jsonify({'location': None})
+
+        except Exception as e:
+            logger.error(f"Error getting current location: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/locations/statistics')
+    def api_location_statistics():
+        """
+        Get location detection statistics (Phase 3).
+
+        Returns:
+            JSON with location stats
+        """
+        try:
+            from app.location import get_location_detector
+
+            detector = get_location_detector()
+            stats = detector.get_statistics()
+
+            return jsonify(stats)
+
+        except Exception as e:
+            logger.error(f"Error getting location statistics: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
     @app.route('/api/statistics')
     def api_statistics():
         """
@@ -233,6 +364,24 @@ def register_routes(app: Flask):
                 },
                 'total_devices': len(devices)
             }
+
+            # Add fingerprinting stats if available (Phase 2)
+            try:
+                from app.fingerprint_manager import get_fingerprint_manager
+                manager = get_fingerprint_manager()
+                stats['fingerprinting'] = manager.get_statistics()
+            except Exception:
+                # Fingerprinting not initialized yet
+                pass
+
+            # Add location stats if available (Phase 3)
+            try:
+                from app.location import get_location_detector
+                detector = get_location_detector()
+                stats['location'] = detector.get_statistics()
+            except Exception:
+                # Location detection not initialized yet
+                pass
 
             return jsonify(stats)
 
