@@ -1,0 +1,45 @@
+[Unit]
+Description=WiFi Desk Plumbus - Surveillance Detection Service
+Documentation=https://github.com/elm1nst3r/DeskPlumbus
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={USER}
+Group={USER}
+WorkingDirectory={PROJECT_DIR}
+
+# Environment variables
+Environment="PATH={PROJECT_DIR}/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+Environment="FLASK_ENV=production"
+
+# Service execution
+ExecStartPre=/bin/sleep 10
+ExecStartPre=/bin/bash -c 'sudo /sbin/ip link set wlan0 down || true'
+ExecStartPre=/bin/bash -c 'sudo /sbin/iw dev wlan0 set type monitor || true'
+ExecStartPre=/bin/bash -c 'sudo /sbin/ip link set wlan0 up || true'
+ExecStart={PROJECT_DIR}/venv/bin/python3 {PROJECT_DIR}/run.py
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=plumbus
+
+# Resource limits (important for Pi Zero W)
+MemoryLimit=256M
+CPUQuota=50%
+
+# Security hardening (optional)
+# NoNewPrivileges=true
+# PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

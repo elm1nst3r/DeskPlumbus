@@ -1,0 +1,219 @@
+# WiFi Desk Plumbus .gitignore
+
+# ===========================
+# Python
+# ===========================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# ===========================
+# Flask
+# ===========================
+
+instance/
+.webassets-cache
+
+# Flask session files
+flask_session/
+
+# ===========================
+# Database
+# ===========================
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+data/*.sqlite
+
+# Database backups
+*.db.backup
+*.sqlite.backup
+
+# ===========================
+# Logs
+# ===========================
+
+# Log files
+*.log
+logs/*.log
+*.log.*
+
+# ===========================
+# IDE / Editors
+# ===========================
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# ===========================
+# macOS
+# ===========================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# ===========================
+# Linux
+# ===========================
+
+# Swap files
+*.swp
+*.swo
+
+# ===========================
+# Raspberry Pi Specific
+# ===========================
+
+# Backup files
+*.bak
+*.backup
+
+# Core dumps
+core
+*.core
+
+# ===========================
+# Project Specific
+# ===========================
+
+# Configuration overrides (keep template, ignore actual config)
+config.local.py
+.env
+.env.local
+.env.*.local
+
+# Temporary data
+tmp/
+temp/
+*.tmp
+
+# Packet captures
+*.pcap
+*.cap
+*.pcapng
+
+# Export files
+exports/
+*.csv
+*.json
+
+# Backup data
+backups/
+data/backups/
+
+# ===========================
+# Documentation
+# ===========================
+
+# Generated documentation
+docs/_build/
+site/
+
+# ===========================
+# Miscellaneous
+# ===========================
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+
+# Keep directory structure with .gitkeep files
+!.gitkeep

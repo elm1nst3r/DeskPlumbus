@@ -1,0 +1,34 @@
+/*
+ * WiFi Desk Plumbus - Main Stylesheet
+ *
+ * Future Implementation (Phase 5):
+ * - Responsive design (desktop, tablet, mobile)
+ * - Plumbus color scheme (blues, purples, greens)
+ * - Dark mode support (optional)
+ * - Chart.js styling
+ * - Animation effects
+ */
+
+/* TODO: Implement main styles */
+/* TODO: Add responsive breakpoints */
+/* TODO: Add color scheme variables */
+/* TODO: Add component styles */
+
+:root {
+    /* Plumbus Color Palette */
+    --plumbus-blue: #1a73e8;
+    --plumbus-purple: #9333ea;
+    --plumbus-green: #34a853;
+    --plumbus-red: #ea4335;
+    --plumbus-gray: #5f6368;
+    --plumbus-bg: #f8f9fa;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: var(--plumbus-bg);
+}
+
+/* Placeholder for full implementation */
