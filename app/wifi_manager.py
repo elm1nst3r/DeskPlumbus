@@ -74,6 +74,7 @@ class NetworkProfile:
     password: str
     priority: int = 0  # Higher = prefer this network
     auto_connect: bool = True
+    name: str = ""  # Friendly name (optional, defaults to SSID)
 
 
 class WiFiManager:
@@ -99,7 +100,8 @@ class WiFiManager:
         self.managed_duration = 30   # 30 seconds (10%)
         self.last_switch_time = time.time()
 
-        # Network profiles
+        # Configuration files
+        self.config_file = config.DATA_DIR / "wifi_config.json"
         self.profiles_file = config.DATA_DIR / "network_profiles.json"
         self.profiles: List[NetworkProfile] = []
 
@@ -123,13 +125,26 @@ class WiFiManager:
 
         logger.info(f"Found {len(interfaces)} WiFi interface(s)")
 
-        # Determine strategy based on available interfaces
-        if len(interfaces) >= 2:
-            # Dual interface mode: Check user preference or use defaults
-            surveillance_pref = config.WIFI_SURVEILLANCE_INTERFACE if hasattr(config, 'WIFI_SURVEILLANCE_INTERFACE') else None
-            management_pref = config.WIFI_MANAGEMENT_INTERFACE if hasattr(config, 'WIFI_MANAGEMENT_INTERFACE') else None
+        # Try to load saved configuration
+        saved_config = self._load_config()
 
-            # Apply user preferences if set
+        # Determine strategy based on available interfaces and saved config
+        if len(interfaces) >= 2:
+            # Dual interface mode: Check saved config first, then config.py, then defaults
+            surveillance_pref = None
+            management_pref = None
+
+            # Priority 1: Saved configuration from web interface
+            if saved_config and saved_config.get('surveillance_interface') and saved_config.get('management_interface'):
+                surveillance_pref = saved_config['surveillance_interface']
+                management_pref = saved_config['management_interface']
+                logger.info(f"Using saved WiFi configuration")
+            # Priority 2: config.py settings
+            elif hasattr(config, 'WIFI_SURVEILLANCE_INTERFACE') and hasattr(config, 'WIFI_MANAGEMENT_INTERFACE'):
+                surveillance_pref = config.WIFI_SURVEILLANCE_INTERFACE
+                management_pref = config.WIFI_MANAGEMENT_INTERFACE
+
+            # Apply preferences if set
             if surveillance_pref and management_pref:
                 # Find interfaces by name
                 surv = next((i for i in interfaces if i.name == surveillance_pref), None)
@@ -138,7 +153,7 @@ class WiFiManager:
                 if surv and mgmt and surv.name != mgmt.name:
                     self.surveillance_interface = surv
                     self.management_interface = mgmt
-                    logger.info(f"✅ Using user-configured interface assignment")
+                    logger.info(f"✅ Using configured interface assignment")
                 else:
                     logger.warning("Invalid interface configuration, using defaults")
                     self.surveillance_interface = interfaces[0]
@@ -332,7 +347,11 @@ class WiFiManager:
             )
 
             if result.returncode != 0:
-                logger.error(f"Scan failed: {result.stderr}")
+                error_msg = result.stderr.strip()
+                logger.error(f"Network scan failed: {error_msg}")
+                logger.error(f"Command: sudo iw {interface} scan")
+                logger.error(f"Make sure interface is in managed mode and up")
+                logger.error(f"Check sudo permissions for: /sbin/iw")
                 return networks
 
             # Parse scan results
@@ -519,6 +538,34 @@ network={{
         except Exception as e:
             logger.error(f"Error saving profiles: {e}")
 
+    def _load_config(self):
+        """Load saved WiFi configuration (strategy and interface assignments)."""
+        try:
+            if self.config_file.exists():
+                with open(self.config_file, 'r') as f:
+                    data = json.load(f)
+                    return data
+            return None
+        except Exception as e:
+            logger.error(f"Error loading WiFi config: {e}")
+            return None
+
+    def _save_config(self):
+        """Save WiFi configuration (strategy and interface assignments)."""
+        try:
+            config_data = {
+                'strategy': self.strategy.value,
+                'surveillance_interface': self.surveillance_interface.name if self.surveillance_interface else None,
+                'management_interface': self.management_interface.name if self.management_interface else None,
+                'monitor_duration': self.monitor_duration,
+                'managed_duration': self.managed_duration
+            }
+            with open(self.config_file, 'w') as f:
+                json.dump(config_data, f, indent=2)
+            logger.info("WiFi configuration saved")
+        except Exception as e:
+            logger.error(f"Error saving WiFi config: {e}")
+
     def _auto_connect(self):
         """Try to auto-connect to saved networks."""
         if not self.profiles:
@@ -587,6 +634,9 @@ network={{
         # Reinitialize with new assignments
         self._setup_interfaces()
 
+        # Save configuration so it persists across reboots
+        self._save_config()
+
         logger.info(f"✅ Interfaces swapped")
         logger.info(f"  Surveillance: {self.surveillance_interface.name}")
         logger.info(f"  Management: {self.management_interface.name}")
@@ -620,6 +670,9 @@ network={{
 
         # Reinitialize with new assignments
         self._setup_interfaces()
+
+        # Save configuration so it persists across reboots
+        self._save_config()
 
         return True, f"Assigned {surveillance_name} to surveillance, {management_name} to management"
 
