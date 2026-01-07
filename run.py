@@ -5,10 +5,10 @@ WiFi Desk Plumbus - Application Entry Point
 This is the main entry point for the Plumbus Sentinel system.
 Run with: python3 run.py (or sudo python3 run.py for monitor mode)
 
-Phase 1: Core WiFi Monitoring
+Features:
 - Database initialization
 - WiFi monitor setup (requires sudo on Raspberry Pi)
-- Flask web server
+- Flask web server with real-time updates
 """
 
 import sys
@@ -27,7 +27,7 @@ except ImportError as e:
     print(f"ERROR: Could not import config: {e}")
     sys.exit(1)
 
-# Setup logging with rotation (Phase 6)
+# Setup logging with rotation
 try:
     from app.logging_config import setup_logging
     setup_logging()
@@ -43,8 +43,8 @@ except Exception as e:
 logger = logging.getLogger(__name__)
 
 
-def print_phase5_banner():
-    """Print the Phase 5 banner."""
+def print_startup_banner():
+    """Print the startup banner."""
     banner = """
     ╔═══════════════════════════════════════════════════════════════════╗
     ║                                                                   ║
@@ -55,9 +55,9 @@ def print_phase5_banner():
     ║  ██║     ███████╗╚██████╔╝██║ ╚═╝ ██║██████╔╝╚██████╔╝███████║  ║
     ║  ╚═╝     ╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═════╝  ╚═════╝ ╚══════╝  ║
     ║                                                                   ║
-    ║         PHASE 5: Real-time Analytics Active!                     ║
-    ║        Plumbus Sentinel initialized... Everyone has one!         ║
-    ║      🛸 Live updates & advanced charts! 🛸                        ║
+    ║              WiFi Surveillance Detection System                  ║
+    ║           Plumbus Sentinel... Everyone has one!                  ║
+    ║         🛸 Live updates & advanced analytics! 🛸                  ║
     ║                                                                   ║
     ╚═══════════════════════════════════════════════════════════════════╝
     """
@@ -139,11 +139,11 @@ def init_database():
 
 
 def init_fingerprinting():
-    """Initialize Phase 2 fingerprinting system."""
+    """Initialize fingerprinting system."""
     try:
         from app.fingerprint_manager import init_fingerprint_manager
 
-        logger.info("Initializing SSID Fingerprinting (Phase 2)...")
+        logger.info("Initializing SSID Fingerprinting...")
         manager = init_fingerprint_manager()
 
         stats = manager.get_statistics()
@@ -159,11 +159,11 @@ def init_fingerprinting():
 
 
 def init_location_detection(fingerprint_manager):
-    """Initialize Phase 3 location detection system."""
+    """Initialize location detection system."""
     try:
         from app.location import init_location_detector
 
-        logger.info("Initializing Location Detection (Phase 3)...")
+        logger.info("Initializing Location Detection...")
         detector = init_location_detector()
 
         # Connect to fingerprint manager
@@ -184,11 +184,11 @@ def init_location_detection(fingerprint_manager):
 
 
 def init_following_detection(fingerprint_manager):
-    """Initialize Phase 4 following device detection system."""
+    """Initialize following device detection system."""
     try:
         from app.following import init_following_detector
 
-        logger.info("Initializing Following Detection (Phase 4)...")
+        logger.info("Initializing Following Detection...")
         detector = init_following_detector()
 
         # Connect to fingerprint manager
@@ -286,7 +286,7 @@ def init_eink_display():
 
 
 def start_flask_server():
-    """Start the Flask-SocketIO web server (Phase 5)."""
+    """Start the Flask-SocketIO web server."""
     try:
         from app.api import create_socketio_app
 
@@ -294,7 +294,7 @@ def start_flask_server():
         app, socketio = create_socketio_app()
 
         logger.info("=" * 60)
-        logger.info("PHASE 5: WiFi Desk Plumbus Ready!")
+        logger.info("WiFi Desk Plumbus Ready!")
         logger.info("=" * 60)
         logger.info("")
         logger.info("Web Interface:")
@@ -307,7 +307,7 @@ def start_flask_server():
         logger.info(f"  Devices: http://localhost:{config.FLASK_PORT}/api/devices")
         logger.info(f"  Health:  http://localhost:{config.FLASK_PORT}/health")
         logger.info("")
-        logger.info("WebSocket Features (Phase 5):")
+        logger.info("WebSocket Features:")
         logger.info(f"  Real-time updates enabled")
         logger.info(f"  Update interval: {config.WEBSOCKET_UPDATE_INTERVAL}s")
         logger.info("")
@@ -334,10 +334,10 @@ def start_flask_server():
 
 
 def main():
-    """Main entry point for Phase 5."""
-    print_phase5_banner()
+    """Main entry point."""
+    print_startup_banner()
 
-    logger.info("Starting WiFi Desk Plumbus - Phase 5")
+    logger.info("Starting WiFi Desk Plumbus")
     logger.info(f"Version: {config.APP_VERSION}")
     logger.info(f"Project directory: {PROJECT_ROOT}")
 
@@ -351,20 +351,20 @@ def main():
         logger.error("Database initialization failed!")
         sys.exit(1)
 
-    # Initialize fingerprinting (Phase 2)
+    # Initialize fingerprinting
     fingerprint_manager = init_fingerprinting()
     if not fingerprint_manager:
-        logger.warning("Fingerprinting initialization failed - continuing without Phase 2 features")
+        logger.warning("Fingerprinting initialization failed - continuing without fingerprinting features")
 
-    # Initialize location detection (Phase 3)
+    # Initialize location detection
     location_detector = init_location_detection(fingerprint_manager)
     if not location_detector:
-        logger.warning("Location detection initialization failed - continuing without Phase 3 features")
+        logger.warning("Location detection initialization failed - continuing without location features")
 
-    # Initialize following detection (Phase 4)
+    # Initialize following detection
     following_detector = init_following_detection(fingerprint_manager)
     if not following_detector:
-        logger.warning("Following detection initialization failed - continuing without Phase 4 features")
+        logger.warning("Following detection initialization failed - continuing without following detection features")
 
     # Initialize WiFi manager
     wifi_manager = init_wifi_manager()
@@ -380,7 +380,6 @@ def main():
     logger.info("=" * 60)
     logger.info("CONFIGURATION SUMMARY")
     logger.info("=" * 60)
-    logger.info(f"Phase: 5 (Real-time Analytics)")
     logger.info(f"WiFi Interface: {config.WIFI_INTERFACE}")
     logger.info(f"Scan Interval: {config.SCAN_INTERVAL} seconds")
     logger.info(f"Device Similarity Threshold: {config.SIMILARITY_THRESHOLD * 100}%")
@@ -410,11 +409,11 @@ def main():
     logger.info("  - Monitor mode support (Raspberry Pi)")
     logger.info("  - Scapy library")
     logger.info("")
-    logger.info("Phase 5 includes real-time updates and analytics!")
-    logger.info("  - Phase 2: SSID fingerprinting defeats MAC randomization")
-    logger.info("  - Phase 3: Location tracking via visible WiFi networks")
-    logger.info("  - Phase 4: Detect devices following you across locations")
-    logger.info("  - Phase 5: Real-time WebSocket updates & advanced charts")
+    logger.info("Features:")
+    logger.info("  - SSID fingerprinting defeats MAC randomization")
+    logger.info("  - Location tracking via visible WiFi networks")
+    logger.info("  - Detect devices following you across locations")
+    logger.info("  - Real-time WebSocket updates & advanced charts")
     logger.info("Active WiFi monitoring will be enabled when running on Raspberry Pi with sudo.")
     logger.info("")
 
