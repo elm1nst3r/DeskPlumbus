@@ -160,23 +160,25 @@ class EInkDisplay:
         image = Image.new('1', (self.width, self.height), 255)  # White background
         draw = ImageDraw.Draw(image)
 
-        # Banner with inverted colors
-        draw.rectangle([(0, 0), (self.width, 30)], fill=0)
-        draw.text((5, 5), "PLUMBUS", font=self.font_large, fill=255)
+        # Banner with inverted colors - use medium font to fit
+        draw.rectangle([(0, 0), (self.width, 26)], fill=0)
+        draw.text((3, 3), "WIFI DESK PLUMBUS", font=self.font_medium, fill=255)
 
         # Version and status
-        y = 40
-        draw.text((5, y), f"v{config.APP_VERSION}", font=self.font_small, fill=0)
+        y = 34
+        draw.text((3, y), f"Version {config.APP_VERSION}", font=self.font_small, fill=0)
         y += 16
-        draw.text((5, y), "Initializing sensors...", font=self.font_tiny, fill=0)
+        draw.text((3, y), "Initializing...", font=self.font_tiny, fill=0)
         y += 12
-        draw.text((5, y), "WiFi surveillance", font=self.font_tiny, fill=0)
-        y += 12
-        draw.text((5, y), "Device tracking", font=self.font_tiny, fill=0)
+        draw.text((3, y), "* WiFi surveillance", font=self.font_tiny, fill=0)
+        y += 11
+        draw.text((3, y), "* Device tracking", font=self.font_tiny, fill=0)
+        y += 11
+        draw.text((3, y), "* Location detection", font=self.font_tiny, fill=0)
 
         # Footer
-        draw.line([(0, self.height-14), (self.width, self.height-14)], fill=0)
-        draw.text((5, self.height-12), "Everyone has one!", font=self.font_tiny, fill=0)
+        draw.line([(0, self.height-13), (self.width, self.height-13)], fill=0)
+        draw.text((3, self.height-11), "Everyone has one!", font=self.font_tiny, fill=0)
 
         self._display_image(image)
 
