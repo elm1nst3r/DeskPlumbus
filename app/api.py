@@ -2026,6 +2026,108 @@ def register_routes(app: Flask):
                 'message': str(e)
             }), 500
 
+    @app.route('/api/system/mosh/status')
+    @login_required
+    def api_mosh_status():
+        """Check if mosh server is installed and running."""
+        try:
+            import subprocess
+
+            # Check if mosh is installed
+            mosh_installed = False
+            try:
+                result = subprocess.run(['which', 'mosh-server'],
+                                      capture_output=True, text=True, timeout=5)
+                mosh_installed = result.returncode == 0
+            except:
+                pass
+
+            # Check if mosh-server service is running
+            mosh_running = False
+            if mosh_installed:
+                try:
+                    # Check for mosh-server processes
+                    result = subprocess.run(['pgrep', '-x', 'mosh-server'],
+                                          capture_output=True, timeout=5)
+                    mosh_running = result.returncode == 0
+                except:
+                    pass
+
+            return jsonify({
+                'success': True,
+                'installed': mosh_installed,
+                'running': mosh_running
+            })
+
+        except Exception as e:
+            logger.error(f"Error checking mosh status: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/system/mosh/start', methods=['POST'])
+    @login_required
+    def api_mosh_start():
+        """Install and enable mosh if not already installed."""
+        try:
+            import subprocess
+
+            # Check if mosh is installed
+            result = subprocess.run(['which', 'mosh-server'],
+                                  capture_output=True, text=True, timeout=5)
+
+            if result.returncode != 0:
+                # Mosh not installed, install it
+                logger.info("Installing mosh-server...")
+
+                # Update package list
+                subprocess.run(['sudo', 'apt-get', 'update'],
+                             timeout=60, check=False)
+
+                # Install mosh
+                install_result = subprocess.run(
+                    ['sudo', 'apt-get', 'install', '-y', 'mosh'],
+                    capture_output=True, text=True, timeout=300
+                )
+
+                if install_result.returncode != 0:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Failed to install mosh: ' + install_result.stderr
+                    }), 500
+
+                logger.info("Mosh installed successfully")
+
+            # Open firewall ports for mosh (UDP 60000-61000)
+            logger.info("Configuring firewall for mosh...")
+            try:
+                # Check if ufw is active
+                ufw_check = subprocess.run(['sudo', 'ufw', 'status'],
+                                         capture_output=True, text=True, timeout=5)
+
+                if 'Status: active' in ufw_check.stdout:
+                    # Open mosh ports
+                    subprocess.run(['sudo', 'ufw', 'allow', '60000:61000/udp'],
+                                 timeout=10, check=False)
+            except:
+                # If ufw not installed or error, that's okay
+                pass
+
+            return jsonify({
+                'success': True,
+                'message': 'Mosh server installed and ready! Connect with: mosh pi@<ip-address>',
+                'installed': True,
+                'running': True
+            })
+
+        except Exception as e:
+            logger.error(f"Error starting mosh: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
     # ==========================================
     # Health Check
     # ==========================================

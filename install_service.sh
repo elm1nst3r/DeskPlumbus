@@ -37,15 +37,17 @@ rm plumbus.service.tmp
 # Set correct permissions
 sudo chmod 644 /etc/systemd/system/plumbus.service
 
-# Configure sudo permissions for reboot/shutdown commands
+# Configure sudo permissions for system commands
 echo "Configuring sudo permissions for system commands..."
 SUDOERS_FILE="/etc/sudoers.d/plumbus"
 sudo tee "$SUDOERS_FILE" > /dev/null <<EOF
-# WiFi Desk Plumbus - Allow web interface to reboot/shutdown system
+# WiFi Desk Plumbus - Allow web interface to manage system
 $CURRENT_USER ALL=(ALL) NOPASSWD: /sbin/reboot
 $CURRENT_USER ALL=(ALL) NOPASSWD: /sbin/shutdown
 $CURRENT_USER ALL=(ALL) NOPASSWD: /sbin/ip
 $CURRENT_USER ALL=(ALL) NOPASSWD: /sbin/iw
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get
+$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/sbin/ufw
 EOF
 
 sudo chmod 440 "$SUDOERS_FILE"
