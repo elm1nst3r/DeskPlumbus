@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Desk Plumbus - Everyone Has One!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .status-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-item h3 {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .status-item p {
+            font-size: 1.5em;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .phase-badge {
+            display: inline-block;
+            background: #34a853;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            padding: 20px;
+        }
+
+        .features-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .features-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #34a853;
+        }
+
+        .features-list li.pending {
+            border-left-color: #ea4335;
+            color: #666;
+        }
+
+        .features-list li.completed::before {
+            content: "✓ ";
+            color: #34a853;
+            font-weight: bold;
+        }
+
+        .features-list li.pending::before {
+            content: "○ ";
+            color: #ea4335;
+        }
+
+        @media (max-width: 768px) {
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛸 WiFi Desk Plumbus 🛸</h1>
+            <p>Everyone has one... now you do too!</p>
+            <span class="phase-badge" id="phaseBadge">Phase 3: Location Detection Active!</span>
+        </div>
+
+        <div class="card">
+            <h2>System Status</h2>
+            <div id="statusLoading" class="loading">Loading system status...</div>
+            <div id="statusContent" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <h3>Status</h3>
+                        <p id="systemStatus">-</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>WiFi Interface</h3>
+                        <p id="wifiInterface">-</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Scan Interval</h3>
+                        <p id="scanInterval">-</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Database Size</h3>
+                        <p id="dbSize">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Database Statistics</h2>
+            <div id="statsLoading" class="loading">Loading statistics...</div>
+            <div id="statsContent" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <h3>Devices</h3>
+                        <p id="devicesCount">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Locations</h3>
+                        <p id="locationsCount">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Network Observations</h3>
+                        <p id="networksCount">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Probe Requests</h3>
+                        <p id="probesCount">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Alerts</h3>
+                        <p id="alertsCount">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Fingerprinting Statistics (Phase 2)</h2>
+            <div id="fingerprintingLoading" class="loading">Loading fingerprinting stats...</div>
+            <div id="fingerprintingContent" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <h3>Total Fingerprints</h3>
+                        <p id="totalFingerprints">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Tracked MAC Addresses</h3>
+                        <p id="totalMacs">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Probes Processed</h3>
+                        <p id="probesProcessed">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Avg SSIDs per Device</h3>
+                        <p id="avgSsids">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Fingerprints Created</h3>
+                        <p id="fingerprintsCreated">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Fingerprints Matched</h3>
+                        <p id="fingerprintsMatched">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Current Location (Phase 3)</h2>
+            <div id="locationLoading" class="loading">Loading location...</div>
+            <div id="locationContent" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <h3>Location</h3>
+                        <p id="currentLocation">Unknown</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Total Locations</h3>
+                        <p id="totalLocations">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Networks Visible</h3>
+                        <p id="networksVisible">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Avg Networks/Location</h3>
+                        <p id="avgNetworks">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Implementation Progress</h2>
+            <ul class="features-list">
+                <li class="completed">Database schema and initialization</li>
+                <li class="completed">WiFi monitor mode management</li>
+                <li class="completed">Scapy packet capture for probe requests</li>
+                <li class="completed">Network scanner for beacon frames</li>
+                <li class="completed">Basic Flask web application</li>
+                <li class="completed">SSID pool fingerprinting (Phase 2)</li>
+                <li class="completed">Jaccard similarity matching (Phase 2)</li>
+                <li class="completed">MAC randomization detection (Phase 2)</li>
+                <li class="completed">BSSID pool location fingerprinting (Phase 3)</li>
+                <li class="completed">Automatic location detection (Phase 3)</li>
+                <li class="completed">Location tracking & management (Phase 3)</li>
+                <li class="pending">Following device detection (Phase 4)</li>
+                <li class="pending">Real-time WebSocket updates (Phase 5)</li>
+                <li class="pending">Advanced analytics & Chart.js (Phase 5)</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>WiFi Desk Plumbus v1.0.0 - Phase 3 (Location Detection)</p>
+            <p>Everyone has one! 🛸</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                <em>"I always wondered how Plumbuses got made..."</em> - Interdimensional Cable
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Fetch and display system status
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+
+                document.getElementById('systemStatus').textContent = data.status.toUpperCase();
+                document.getElementById('wifiInterface').textContent = data.wifi_interface;
+                document.getElementById('scanInterval').textContent = `${data.scan_interval}s`;
+                document.getElementById('dbSize').textContent = `${data.database.database_size_mb.toFixed(2)} MB`;
+
+                document.getElementById('statusLoading').style.display = 'none';
+                document.getElementById('statusContent').style.display = 'block';
+            } catch (error) {
+                document.getElementById('statusLoading').innerHTML = `
+                    <div class="error">Error loading status: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Fetch and display statistics
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/api/statistics');
+                const data = await response.json();
+
+                document.getElementById('devicesCount').textContent = data.database.devices_count;
+                document.getElementById('locationsCount').textContent = data.database.locations_count;
+                document.getElementById('networksCount').textContent = data.database.network_observations_count;
+                document.getElementById('probesCount').textContent = data.database.probe_requests_count;
+                document.getElementById('alertsCount').textContent = data.database.alerts_count;
+
+                document.getElementById('statsLoading').style.display = 'none';
+                document.getElementById('statsContent').style.display = 'block';
+            } catch (error) {
+                document.getElementById('statsLoading').innerHTML = `
+                    <div class="error">Error loading statistics: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Fetch and display fingerprinting statistics (Phase 2)
+        async function loadFingerprintingStatistics() {
+            try {
+                const response = await fetch('/api/fingerprints/statistics');
+                const data = await response.json();
+
+                document.getElementById('totalFingerprints').textContent = data.total_fingerprints;
+                document.getElementById('totalMacs').textContent = data.total_mac_addresses;
+                document.getElementById('probesProcessed').textContent = data.probes_processed;
+                document.getElementById('avgSsids').textContent = data.average_ssids_per_device;
+                document.getElementById('fingerprintsCreated').textContent = data.fingerprints_created;
+                document.getElementById('fingerprintsMatched').textContent = data.fingerprints_matched;
+
+                document.getElementById('fingerprintingLoading').style.display = 'none';
+                document.getElementById('fingerprintingContent').style.display = 'block';
+            } catch (error) {
+                document.getElementById('fingerprintingLoading').innerHTML = `
+                    <div class="error">Error loading fingerprinting stats: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Fetch and display location data (Phase 3)
+        async function loadLocationData() {
+            try {
+                // Load current location
+                const currentResponse = await fetch('/api/locations/current');
+                const currentData = await currentResponse.json();
+
+                // Load location statistics
+                const statsResponse = await fetch('/api/locations/statistics');
+                const statsData = await statsResponse.json();
+
+                // Update current location display
+                if (currentData.location_id) {
+                    document.getElementById('currentLocation').textContent = currentData.name;
+                    document.getElementById('networksVisible').textContent = currentData.bssid_count;
+                } else {
+                    document.getElementById('currentLocation').textContent = 'Unknown';
+                    document.getElementById('networksVisible').textContent = '-';
+                }
+
+                // Update location statistics
+                document.getElementById('totalLocations').textContent = statsData.total_locations;
+                document.getElementById('avgNetworks').textContent = statsData.average_bssids_per_location;
+
+                document.getElementById('locationLoading').style.display = 'none';
+                document.getElementById('locationContent').style.display = 'block';
+            } catch (error) {
+                document.getElementById('locationLoading').innerHTML = `
+                    <div class="error">Error loading location data: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Load data on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('WiFi Desk Plumbus - Phase 3: Location Detection Active!');
+            loadStatus();
+            loadStatistics();
+            loadFingerprintingStatistics();
+            loadLocationData();
+
+            // Refresh every 5 seconds
+            setInterval(() => {
+                loadStatus();
+                loadStatistics();
+                loadFingerprintingStatistics();
+                loadLocationData();
+            }, 5000);
+        });
+    </script>
+</body>
+</html>

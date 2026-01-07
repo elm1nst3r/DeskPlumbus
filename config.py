@@ -172,8 +172,8 @@ DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 # Flask host (0.0.0.0 = accessible from network)
 FLASK_HOST = os.getenv('FLASK_HOST', '0.0.0.0')
 
-# Flask port
-FLASK_PORT = int(os.getenv('FLASK_PORT', 5000))
+# Flask port (changed to 5001 to avoid macOS Control Center on 5000)
+FLASK_PORT = int(os.getenv('FLASK_PORT', 5001))
 
 # Enable Flask development mode
 ENV = 'development' if DEBUG else 'production'

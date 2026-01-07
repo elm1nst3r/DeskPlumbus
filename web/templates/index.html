@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WiFi Desk Plumbus - Everyone Has One!</title>
+    <title>WiFi Desk Plumbus - Phase 5 Real-time Analytics</title>
+    <!-- Socket.IO for real-time WebSocket updates -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <!-- Chart.js for data visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -155,6 +159,96 @@
             color: #ea4335;
         }
 
+        /* Phase 5: Toast Notifications */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 16px 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 300px;
+            max-width: 400px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid #667eea;
+        }
+
+        .toast.alert {
+            border-left-color: #ea4335;
+            background: #fee;
+        }
+
+        .toast.success {
+            border-left-color: #34a853;
+            background: #efe;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Phase 4: Alerts Display */
+        .alert-item {
+            background: #fee;
+            border-left: 4px solid #ea4335;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .alert-item.warning {
+            background: #fff4e5;
+            border-left-color: #ff9800;
+        }
+
+        .alert-item h4 {
+            color: #ea4335;
+            margin-bottom: 5px;
+        }
+
+        .alert-item .alert-details {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        /* Phase 5: Connection Status */
+        .connection-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #34a853;
+            margin-left: 10px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .connection-indicator.disconnected {
+            background: #ea4335;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Chart containers */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+
         @media (max-width: 768px) {
             .status-grid {
                 grid-template-columns: 1fr;
@@ -162,6 +256,12 @@
 
             .header h1 {
                 font-size: 1.8em;
+            }
+
+            .toast {
+                right: 10px;
+                left: 10px;
+                min-width: auto;
             }
         }
     </style>
@@ -171,8 +271,11 @@
         <div class="header">
             <h1>🛸 WiFi Desk Plumbus 🛸</h1>
             <p>Everyone has one... now you do too!</p>
-            <span class="phase-badge" id="phaseBadge">Phase 3: Location Detection Active!</span>
+            <span class="phase-badge" id="phaseBadge">Phase 5: Real-time Analytics Active! <span class="connection-indicator" id="connectionIndicator"></span></span>
         </div>
+
+        <!-- Toast notification container -->
+        <div id="toastContainer"></div>
 
         <div class="card">
             <h2>System Status</h2>
@@ -287,6 +390,48 @@
         </div>
 
         <div class="card">
+            <h2>🚨 Following Device Alerts (Phase 4)</h2>
+            <div id="alertsLoading" class="loading">Loading alerts...</div>
+            <div id="alertsContent" style="display: none;">
+                <div id="alertsList">
+                    <p style="text-align: center; color: #666;">No recent alerts</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📊 Following Detection Statistics (Phase 4)</h2>
+            <div id="followingLoading" class="loading">Loading following stats...</div>
+            <div id="followingContent" style="display: none;">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <h3>Tracked Devices</h3>
+                        <p id="trackedDevices">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Whitelisted</h3>
+                        <p id="whitelistedDevices">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Multi-location Devices</h3>
+                        <p id="multiLocationDevices">0</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Correlation Threshold</h3>
+                        <p id="correlationThreshold">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📈 Device Activity Timeline (Phase 5)</h2>
+            <div class="chart-container">
+                <canvas id="deviceActivityChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
             <h2>Implementation Progress</h2>
             <ul class="features-list">
                 <li class="completed">Database schema and initialization</li>
@@ -300,14 +445,17 @@
                 <li class="completed">BSSID pool location fingerprinting (Phase 3)</li>
                 <li class="completed">Automatic location detection (Phase 3)</li>
                 <li class="completed">Location tracking & management (Phase 3)</li>
-                <li class="pending">Following device detection (Phase 4)</li>
-                <li class="pending">Real-time WebSocket updates (Phase 5)</li>
-                <li class="pending">Advanced analytics & Chart.js (Phase 5)</li>
+                <li class="completed">Following device detection (Phase 4)</li>
+                <li class="completed">Correlation scoring & alerts (Phase 4)</li>
+                <li class="completed">Device whitelist management (Phase 4)</li>
+                <li class="completed">Real-time WebSocket updates (Phase 5)</li>
+                <li class="completed">Advanced analytics & Chart.js (Phase 5)</li>
+                <li class="completed">Live dashboard with toast notifications (Phase 5)</li>
             </ul>
         </div>
 
         <div class="footer">
-            <p>WiFi Desk Plumbus v1.0.0 - Phase 3 (Location Detection)</p>
+            <p>WiFi Desk Plumbus v1.0.0 - Phase 5 (Real-time Analytics)</p>
             <p>Everyone has one! 🛸</p>
             <p style="margin-top: 10px; font-size: 0.9em;">
                 <em>"I always wondered how Plumbuses got made..."</em> - Interdimensional Cable
@@ -316,117 +464,294 @@
     </div>
 
     <script>
-        // Fetch and display system status
-        async function loadStatus() {
-            try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
+        // ==================== Phase 5: WebSocket Real-time Updates ====================
 
-                document.getElementById('systemStatus').textContent = data.status.toUpperCase();
-                document.getElementById('wifiInterface').textContent = data.wifi_interface;
-                document.getElementById('scanInterval').textContent = `${data.scan_interval}s`;
-                document.getElementById('dbSize').textContent = `${data.database.database_size_mb.toFixed(2)} MB`;
+        // Connect to WebSocket server
+        const socket = io('http://localhost:5001');
 
-                document.getElementById('statusLoading').style.display = 'none';
-                document.getElementById('statusContent').style.display = 'block';
-            } catch (error) {
-                document.getElementById('statusLoading').innerHTML = `
-                    <div class="error">Error loading status: ${error.message}</div>
-                `;
-            }
+        // Global variables
+        let deviceActivityChart = null;
+        let toastTimeout = null;
+
+        // ==================== Toast Notifications ====================
+
+        function showToast(message, type = 'info', duration = 5000) {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<strong>${message}</strong>`;
+
+            toastContainer.appendChild(toast);
+
+            // Auto-remove after duration
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
         }
 
-        // Fetch and display statistics
-        async function loadStatistics() {
-            try {
-                const response = await fetch('/api/statistics');
-                const data = await response.json();
+        // ==================== Connection Events ====================
 
-                document.getElementById('devicesCount').textContent = data.database.devices_count;
-                document.getElementById('locationsCount').textContent = data.database.locations_count;
-                document.getElementById('networksCount').textContent = data.database.network_observations_count;
-                document.getElementById('probesCount').textContent = data.database.probe_requests_count;
-                document.getElementById('alertsCount').textContent = data.database.alerts_count;
+        socket.on('connect', function() {
+            console.log('✅ Connected to WebSocket server');
+            const indicator = document.getElementById('connectionIndicator');
+            indicator.classList.remove('disconnected');
+            showToast('🛸 Connected to Plumbus Sentinel!', 'success', 3000);
+        });
 
-                document.getElementById('statsLoading').style.display = 'none';
-                document.getElementById('statsContent').style.display = 'block';
-            } catch (error) {
-                document.getElementById('statsLoading').innerHTML = `
-                    <div class="error">Error loading statistics: ${error.message}</div>
-                `;
+        socket.on('disconnect', function() {
+            console.log('❌ Disconnected from WebSocket server');
+            const indicator = document.getElementById('connectionIndicator');
+            indicator.classList.add('disconnected');
+            showToast('⚠️ Connection lost - Reconnecting...', 'alert', 3000);
+        });
+
+        // ==================== System Status Updates ====================
+
+        socket.on('status_update', function(data) {
+            console.log('📊 Status update:', data);
+
+            document.getElementById('systemStatus').textContent = data.status.toUpperCase();
+            document.getElementById('wifiInterface').textContent = data.wifi_interface;
+            document.getElementById('scanInterval').textContent = data.scan_interval + 's';
+            document.getElementById('dbSize').textContent = data.database_size_mb.toFixed(2) + ' MB';
+
+            // Show content, hide loading
+            document.getElementById('statusLoading').style.display = 'none';
+            document.getElementById('statusContent').style.display = 'block';
+        });
+
+        // ==================== Statistics Updates ====================
+
+        socket.on('statistics_update', function(data) {
+            console.log('📈 Statistics update:', data);
+
+            document.getElementById('devicesCount').textContent = data.database.devices_count;
+            document.getElementById('locationsCount').textContent = data.database.locations_count;
+            document.getElementById('networksCount').textContent = data.database.network_observations_count;
+            document.getElementById('probesCount').textContent = data.database.probe_requests_count;
+            document.getElementById('alertsCount').textContent = data.database.alerts_count;
+
+            // Show content, hide loading
+            document.getElementById('statsLoading').style.display = 'none';
+            document.getElementById('statsContent').style.display = 'block';
+        });
+
+        // ==================== Fingerprinting Updates (Phase 2) ====================
+
+        socket.on('fingerprint_stats_update', function(data) {
+            console.log('🔍 Fingerprint stats:', data);
+
+            document.getElementById('totalFingerprints').textContent = data.total_fingerprints;
+            document.getElementById('totalMacs').textContent = data.total_mac_addresses;
+            document.getElementById('probesProcessed').textContent = data.probes_processed;
+            document.getElementById('avgSsids').textContent = data.average_ssids_per_device;
+            document.getElementById('fingerprintsCreated').textContent = data.fingerprints_created;
+            document.getElementById('fingerprintsMatched').textContent = data.fingerprints_matched;
+
+            // Show content, hide loading
+            document.getElementById('fingerprintingLoading').style.display = 'none';
+            document.getElementById('fingerprintingContent').style.display = 'block';
+        });
+
+        // ==================== Location Updates (Phase 3) ====================
+
+        socket.on('location_update', function(data) {
+            console.log('📍 Location update:', data);
+
+            // Update current location
+            if (data.current_location) {
+                document.getElementById('currentLocation').textContent = data.current_location.name;
+                document.getElementById('networksVisible').textContent = data.current_location.bssid_count;
+            } else {
+                document.getElementById('currentLocation').textContent = 'Unknown';
+                document.getElementById('networksVisible').textContent = '-';
             }
-        }
 
-        // Fetch and display fingerprinting statistics (Phase 2)
-        async function loadFingerprintingStatistics() {
-            try {
-                const response = await fetch('/api/fingerprints/statistics');
-                const data = await response.json();
-
-                document.getElementById('totalFingerprints').textContent = data.total_fingerprints;
-                document.getElementById('totalMacs').textContent = data.total_mac_addresses;
-                document.getElementById('probesProcessed').textContent = data.probes_processed;
-                document.getElementById('avgSsids').textContent = data.average_ssids_per_device;
-                document.getElementById('fingerprintsCreated').textContent = data.fingerprints_created;
-                document.getElementById('fingerprintsMatched').textContent = data.fingerprints_matched;
-
-                document.getElementById('fingerprintingLoading').style.display = 'none';
-                document.getElementById('fingerprintingContent').style.display = 'block';
-            } catch (error) {
-                document.getElementById('fingerprintingLoading').innerHTML = `
-                    <div class="error">Error loading fingerprinting stats: ${error.message}</div>
-                `;
+            // Update location statistics
+            if (data.statistics) {
+                document.getElementById('totalLocations').textContent = data.statistics.total_locations;
+                document.getElementById('avgNetworks').textContent = data.statistics.average_bssids_per_location;
             }
-        }
 
-        // Fetch and display location data (Phase 3)
-        async function loadLocationData() {
-            try {
-                // Load current location
-                const currentResponse = await fetch('/api/locations/current');
-                const currentData = await currentResponse.json();
+            // Show content, hide loading
+            document.getElementById('locationLoading').style.display = 'none';
+            document.getElementById('locationContent').style.display = 'block';
+        });
 
-                // Load location statistics
-                const statsResponse = await fetch('/api/locations/statistics');
-                const statsData = await statsResponse.json();
+        // ==================== Following Detection Updates (Phase 4) ====================
 
-                // Update current location display
-                if (currentData.location_id) {
-                    document.getElementById('currentLocation').textContent = currentData.name;
-                    document.getElementById('networksVisible').textContent = currentData.bssid_count;
-                } else {
-                    document.getElementById('currentLocation').textContent = 'Unknown';
-                    document.getElementById('networksVisible').textContent = '-';
+        socket.on('following_stats_update', function(data) {
+            console.log('🕵️ Following stats:', data);
+
+            document.getElementById('trackedDevices').textContent = data.total_tracked_devices;
+            document.getElementById('whitelistedDevices').textContent = data.whitelisted_devices;
+            document.getElementById('multiLocationDevices').textContent = data.multi_location_devices;
+            document.getElementById('correlationThreshold').textContent = data.correlation_threshold.toFixed(2);
+
+            // Show content, hide loading
+            document.getElementById('followingLoading').style.display = 'none';
+            document.getElementById('followingContent').style.display = 'block';
+        });
+
+        // ==================== Alerts Updates (Phase 4) ====================
+
+        socket.on('alerts_update', function(data) {
+            console.log('🚨 Alerts update:', data);
+
+            const alertsList = document.getElementById('alertsList');
+
+            if (data.count === 0) {
+                alertsList.innerHTML = '<p style="text-align: center; color: #666;">No recent alerts</p>';
+            } else {
+                alertsList.innerHTML = '';
+
+                // Display up to 5 most recent alerts
+                const alertsToShow = data.alerts.slice(0, 5);
+                alertsToShow.forEach(alert => {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert-item';
+
+                    const timestamp = new Date(alert.timestamp * 1000).toLocaleString();
+                    const deviceId = alert.device_id ? alert.device_id.substring(0, 8) : 'unknown';
+
+                    alertDiv.innerHTML = `
+                        <h4>${alert.alert_type.toUpperCase()}</h4>
+                        <p>${alert.message}</p>
+                        <div class="alert-details">
+                            Device: <strong>${deviceId}</strong> |
+                            Time: ${timestamp}
+                        </div>
+                    `;
+
+                    alertsList.appendChild(alertDiv);
+                });
+            }
+
+            // Show content, hide loading
+            document.getElementById('alertsLoading').style.display = 'none';
+            document.getElementById('alertsContent').style.display = 'block';
+        });
+
+        // ==================== New Alert Notification (Phase 4) ====================
+
+        socket.on('new_alert', function(data) {
+            console.log('🚨 NEW ALERT:', data);
+
+            const deviceId = data.device_id ? data.device_id.substring(0, 8) : 'unknown';
+            const message = `🚨 ${data.alert_type.toUpperCase()}: ${deviceId}`;
+
+            showToast(message, 'alert', 8000);
+
+            // Request updated alerts list
+            socket.emit('request_update', { type: 'alerts' });
+        });
+
+        // ==================== Chart.js Device Activity Timeline (Phase 5) ====================
+
+        function initializeDeviceActivityChart() {
+            const ctx = document.getElementById('deviceActivityChart').getContext('2d');
+
+            // Create initial chart with placeholder data
+            deviceActivityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Devices Detected',
+                            data: [],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Probe Requests',
+                            data: [],
+                            borderColor: '#34a853',
+                            backgroundColor: 'rgba(52, 168, 83, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Networks Visible',
+                            data: [],
+                            borderColor: '#ea4335',
+                            backgroundColor: 'rgba(234, 67, 53, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        title: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        },
+                        x: {
+                            display: true
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
                 }
-
-                // Update location statistics
-                document.getElementById('totalLocations').textContent = statsData.total_locations;
-                document.getElementById('avgNetworks').textContent = statsData.average_bssids_per_location;
-
-                document.getElementById('locationLoading').style.display = 'none';
-                document.getElementById('locationContent').style.display = 'block';
-            } catch (error) {
-                document.getElementById('locationLoading').innerHTML = `
-                    <div class="error">Error loading location data: ${error.message}</div>
-                `;
-            }
+            });
         }
 
-        // Load data on page load
-        window.addEventListener('DOMContentLoaded', () => {
-            console.log('WiFi Desk Plumbus - Phase 3: Location Detection Active!');
-            loadStatus();
-            loadStatistics();
-            loadFingerprintingStatistics();
-            loadLocationData();
+        function updateDeviceActivityChart(data) {
+            if (!deviceActivityChart) return;
 
-            // Refresh every 5 seconds
-            setInterval(() => {
-                loadStatus();
-                loadStatistics();
-                loadFingerprintingStatistics();
-                loadLocationData();
-            }, 5000);
+            const now = new Date().toLocaleTimeString();
+            const maxDataPoints = 20;
+
+            // Add new data point
+            deviceActivityChart.data.labels.push(now);
+            deviceActivityChart.data.datasets[0].data.push(data.database.devices_count);
+            deviceActivityChart.data.datasets[1].data.push(data.database.probe_requests_count);
+            deviceActivityChart.data.datasets[2].data.push(data.database.network_observations_count);
+
+            // Keep only last N data points
+            if (deviceActivityChart.data.labels.length > maxDataPoints) {
+                deviceActivityChart.data.labels.shift();
+                deviceActivityChart.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+
+            deviceActivityChart.update('none'); // Update without animation for smoother real-time updates
+        }
+
+        // Update chart when statistics update
+        socket.on('statistics_update', function(data) {
+            updateDeviceActivityChart(data);
+        });
+
+        // ==================== Initialization ====================
+
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('🛸 WiFi Desk Plumbus - Phase 5: Real-time Analytics Active! 🛸');
+            console.log('WebSocket connection established - Live updates enabled!');
+
+            // Initialize Chart.js
+            initializeDeviceActivityChart();
+
+            // Socket.IO will automatically send initial data on connect
+            // via the WebSocket event handlers registered in app/websocket.py
         });
     </script>
 </body>
