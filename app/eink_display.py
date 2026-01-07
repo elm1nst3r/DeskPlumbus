@@ -156,24 +156,27 @@ class EInkDisplay:
             self.font_tiny = ImageFont.load_default()
 
     def _show_boot_screen(self):
-        """Display boot screen."""
+        """Display boot screen - compact."""
         image = Image.new('1', (self.width, self.height), 255)  # White background
         draw = ImageDraw.Draw(image)
 
-        # Title
-        draw.text((10, 10), "WiFi Desk Plumbus", font=self.font_large, fill=0)
+        # Banner with inverted colors
+        draw.rectangle([(0, 0), (self.width, 30)], fill=0)
+        draw.text((5, 5), "PLUMBUS", font=self.font_large, fill=255)
 
-        # Version
-        draw.text((10, 40), f"v{config.APP_VERSION}", font=self.font_small, fill=0)
+        # Version and status
+        y = 40
+        draw.text((5, y), f"v{config.APP_VERSION}", font=self.font_small, fill=0)
+        y += 16
+        draw.text((5, y), "Initializing sensors...", font=self.font_tiny, fill=0)
+        y += 12
+        draw.text((5, y), "WiFi surveillance", font=self.font_tiny, fill=0)
+        y += 12
+        draw.text((5, y), "Device tracking", font=self.font_tiny, fill=0)
 
-        # Status
-        draw.text((10, 60), "Initializing...", font=self.font_medium, fill=0)
-
-        # Fun tagline
-        draw.text((10, 90), "Everyone has one!", font=self.font_tiny, fill=0)
-
-        # Border
-        draw.rectangle([(0, 0), (self.width-1, self.height-1)], outline=0)
+        # Footer
+        draw.line([(0, self.height-14), (self.width, self.height-14)], fill=0)
+        draw.text((5, self.height-12), "Everyone has one!", font=self.font_tiny, fill=0)
 
         self._display_image(image)
 
@@ -211,7 +214,7 @@ class EInkDisplay:
             logger.error(f"Error updating e-ink display: {e}", exc_info=True)
 
     def _show_status_screen(self):
-        """Display main status screen."""
+        """Display main status screen - compact with following alert emphasis."""
         image = Image.new('1', (self.width, self.height), 255)
         draw = ImageDraw.Draw(image)
 
@@ -220,102 +223,143 @@ class EInkDisplay:
         db = get_db()
         stats = db.get_database_stats()
 
-        # Header
-        now = datetime.now().strftime("%H:%M:%S")
-        draw.text((5, 2), f"Plumbus {now}", font=self.font_small, fill=0)
-        draw.line([(0, 18), (self.width, 18)], fill=0)
-
-        # WiFi status
+        # Check for following alerts first
+        following_count = 0
         try:
-            from app.wifi_manager import get_wifi_manager
-            wifi = get_wifi_manager()
-            status = wifi.get_status()
-            strategy = status['strategy'].replace('_', ' ').upper()
-            draw.text((5, 22), f"WiFi: {strategy[:10]}", font=self.font_small, fill=0)
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT COUNT(*) FROM alerts
+                    WHERE alert_type = 'following_detected'
+                    AND status != 'dismissed'
+                """)
+                following_count = cursor.fetchone()[0]
         except:
-            draw.text((5, 22), "WiFi: --", font=self.font_small, fill=0)
+            pass
 
-        # Location
+        y = 2
+
+        # CRITICAL: Following alert banner if present
+        if following_count > 0:
+            # Black background banner for following alert
+            draw.rectangle([(0, y), (self.width, y+20)], fill=0)
+            draw.text((5, y+2), f"!!! {following_count} FOLLOWING ALERT{'S' if following_count > 1 else ''} !!!",
+                     font=self.font_medium, fill=255)
+            y += 24
+        else:
+            # Time and status header
+            now = datetime.now().strftime("%H:%M")
+            draw.text((2, y), f"{now} PLUMBUS OK", font=self.font_small, fill=0)
+            y += 14
+
+        # Location (compact)
         try:
             from app.location import get_location_detector
             detector = get_location_detector()
             current_loc = detector.get_current_location()
-            loc_name = current_loc.name[:15] if current_loc else "Unknown"
-            draw.text((5, 38), f"Loc: {loc_name}", font=self.font_small, fill=0)
+            loc_name = current_loc.name[:18] if current_loc else "Unknown"
+            draw.text((2, y), f"@{loc_name}", font=self.font_small, fill=0)
         except:
-            draw.text((5, 38), "Loc: Unknown", font=self.font_small, fill=0)
+            draw.text((2, y), "@Unknown", font=self.font_small, fill=0)
+        y += 14
 
-        # Stats
-        y = 54
-        draw.text((5, y), f"Devices: {stats['devices_count']}", font=self.font_small, fill=0)
-        y += 16
-        draw.text((5, y), f"Probes: {stats['probe_requests_count']}", font=self.font_small, fill=0)
-        y += 16
-        draw.text((5, y), f"Alerts: {stats['alerts_count']}", font=self.font_small, fill=0)
+        # WiFi mode (very short)
+        try:
+            from app.wifi_manager import get_wifi_manager
+            wifi = get_wifi_manager()
+            status = wifi.get_status()
+            if status['strategy'] == 'dual_interface':
+                mode = "DUAL"
+            elif status['strategy'] == 'time_sliced':
+                mode = "SLICED"
+            else:
+                mode = status['strategy'][:6].upper()
+            draw.text((2, y), f"WiFi:{mode}", font=self.font_tiny, fill=0)
+        except:
+            pass
+        y += 12
 
-        # Border
-        draw.rectangle([(0, 0), (self.width-1, self.height-1)], outline=0)
+        # Compact stats - two columns
+        draw.text((2, y), f"Dev:{stats['devices_count']}", font=self.font_tiny, fill=0)
+        draw.text((130, y), f"Prb:{stats['probe_requests_count']}", font=self.font_tiny, fill=0)
+        y += 12
+        draw.text((2, y), f"Net:{stats['networks_count']}", font=self.font_tiny, fill=0)
+        draw.text((130, y), f"Alr:{stats['alerts_count']}", font=self.font_tiny, fill=0)
+        y += 12
+        draw.text((2, y), f"Loc:{stats['locations_count']}", font=self.font_tiny, fill=0)
+
+        # Bottom status line
+        y = self.height - 12
+        draw.line([(0, y-2), (self.width, y-2)], fill=0)
+        draw.text((2, y), f"Scanning...", font=self.font_tiny, fill=0)
+        draw.text((self.width-40, y), datetime.now().strftime("%m/%d"), font=self.font_tiny, fill=0)
 
         self._display_image(image)
 
     def _show_alerts_screen(self):
-        """Display recent alerts."""
+        """Display alerts - FOLLOWING alerts first, then others."""
         image = Image.new('1', (self.width, self.height), 255)
         draw = ImageDraw.Draw(image)
 
-        # Header
-        draw.text((5, 2), "Recent Alerts", font=self.font_medium, fill=0)
-        draw.line([(0, 22), (self.width, 22)], fill=0)
-
-        # Get alerts
+        # Get alerts - following first
         from app.database import get_db
         db = get_db()
 
         try:
             with db.get_connection() as conn:
                 cursor = conn.cursor()
+                # Get following alerts first, then others
                 cursor.execute("""
-                    SELECT alert_type, device_id, timestamp, status
+                    SELECT alert_type, device_id, timestamp, status, location_id
                     FROM alerts
-                    ORDER BY timestamp DESC
-                    LIMIT 5
+                    WHERE status != 'dismissed'
+                    ORDER BY
+                        CASE WHEN alert_type = 'following_detected' THEN 0 ELSE 1 END,
+                        timestamp DESC
+                    LIMIT 8
                 """)
                 alerts = cursor.fetchall()
 
             if alerts:
-                y = 28
+                y = 2
                 for alert in alerts:
-                    alert_type, device_id, timestamp, status = alert
-                    time_str = datetime.fromtimestamp(timestamp).strftime("%H:%M")
-                    device_short = device_id[:8] if device_id else "Unknown"
+                    alert_type, device_id, timestamp, status, location_id = alert
+                    time_str = datetime.fromtimestamp(timestamp).strftime("%m/%d %H:%M")
+                    device_short = device_id[:6] if device_id else "???"
 
-                    # Alert type
-                    draw.text((5, y), f"{time_str} {alert_type[:10]}", font=self.font_tiny, fill=0)
-                    y += 12
-                    draw.text((10, y), f"{device_short}", font=self.font_tiny, fill=0)
-                    y += 14
+                    # FOLLOWING ALERTS get inverted display
+                    if alert_type == 'following_detected':
+                        # Black background for following
+                        draw.rectangle([(0, y), (self.width, y+10)], fill=0)
+                        draw.text((2, y), f"FOLLOW {device_short} {time_str}",
+                                font=self.font_tiny, fill=255)
+                    else:
+                        # Regular alerts
+                        type_short = alert_type[:8].replace('_', ' ').upper()
+                        draw.text((2, y), f"{type_short[:6]} {device_short} {time_str}",
+                                font=self.font_tiny, fill=0)
 
-                    if y > self.height - 10:
+                    y += 11
+                    if y > self.height - 15:
                         break
+
+                # Footer
+                draw.line([(0, self.height-12), (self.width, self.height-12)], fill=0)
+                draw.text((2, self.height-10), f"{len(alerts)} alert(s)", font=self.font_tiny, fill=0)
             else:
-                draw.text((5, 50), "No recent alerts", font=self.font_small, fill=0)
+                draw.text((2, 2), "ALERTS", font=self.font_medium, fill=0)
+                draw.text((2, 50), "All clear!", font=self.font_small, fill=0)
 
         except Exception as e:
-            draw.text((5, 50), "Error loading alerts", font=self.font_small, fill=0)
-
-        # Border
-        draw.rectangle([(0, 0), (self.width-1, self.height-1)], outline=0)
+            draw.text((2, 2), "ALERTS", font=self.font_medium, fill=0)
+            draw.text((2, 50), "Error", font=self.font_small, fill=0)
 
         self._display_image(image)
 
     def _show_networks_screen(self):
-        """Display nearby networks."""
+        """Display nearby networks - compact list."""
         image = Image.new('1', (self.width, self.height), 255)
         draw = ImageDraw.Draw(image)
-
-        # Header
-        draw.text((5, 2), "WiFi Networks", font=self.font_medium, fill=0)
-        draw.line([(0, 22), (self.width, 22)], fill=0)
 
         # Get recent network observations
         from app.database import get_db
@@ -325,72 +369,87 @@ class EInkDisplay:
             with db.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT DISTINCT ssid, bssid
+                    SELECT DISTINCT ssid, signal_strength
                     FROM network_observations
                     WHERE timestamp > strftime('%s', 'now') - 300
-                    ORDER BY timestamp DESC
-                    LIMIT 6
+                    ORDER BY signal_strength DESC
+                    LIMIT 10
                 """)
                 networks = cursor.fetchall()
 
             if networks:
-                y = 28
-                for ssid, bssid in networks:
-                    ssid_display = ssid[:20] if ssid else "(hidden)"
-                    draw.text((5, y), f"{ssid_display}", font=self.font_tiny, fill=0)
-                    y += 14
+                # Header
+                draw.text((2, 2), f"NETWORKS ({len(networks)})", font=self.font_small, fill=0)
+                draw.line([(0, 14), (self.width, 14)], fill=0)
 
-                    if y > self.height - 10:
+                y = 16
+                for ssid, signal in networks:
+                    ssid_display = ssid[:22] if ssid else "<hidden>"
+                    # Signal strength indicator
+                    bars = "|||" if signal and signal > -60 else "||" if signal and signal > -75 else "|"
+                    draw.text((2, y), f"{bars} {ssid_display}", font=self.font_tiny, fill=0)
+                    y += 10
+
+                    if y > self.height - 2:
                         break
             else:
-                draw.text((5, 50), "No networks visible", font=self.font_small, fill=0)
+                draw.text((2, 2), "NETWORKS", font=self.font_small, fill=0)
+                draw.text((2, 50), "None visible", font=self.font_small, fill=0)
 
         except Exception as e:
-            draw.text((5, 50), "Error loading networks", font=self.font_small, fill=0)
-
-        # Border
-        draw.rectangle([(0, 0), (self.width-1, self.height-1)], outline=0)
+            draw.text((2, 2), "NETWORKS", font=self.font_small, fill=0)
+            draw.text((2, 50), "Error", font=self.font_small, fill=0)
 
         self._display_image(image)
 
     def _show_stats_screen(self):
-        """Display statistics."""
+        """Display statistics - compact grid."""
         image = Image.new('1', (self.width, self.height), 255)
         draw = ImageDraw.Draw(image)
-
-        # Header
-        draw.text((5, 2), "Statistics", font=self.font_medium, fill=0)
-        draw.line([(0, 22), (self.width, 22)], fill=0)
 
         # Get stats
         from app.database import get_db
         db = get_db()
         stats = db.get_database_stats()
 
-        y = 28
-        draw.text((5, y), f"Devices: {stats['devices_count']}", font=self.font_small, fill=0)
-        y += 16
-        draw.text((5, y), f"Locations: {stats['locations_count']}", font=self.font_small, fill=0)
-        y += 16
-        draw.text((5, y), f"Networks: {stats['network_observations_count']}", font=self.font_small, fill=0)
-        y += 16
-        draw.text((5, y), f"Probes: {stats['probe_requests_count']}", font=self.font_small, fill=0)
-        y += 16
-        draw.text((5, y), f"Alerts: {stats['alerts_count']}", font=self.font_small, fill=0)
+        # Title
+        draw.text((2, 2), "STATS", font=self.font_small, fill=0)
+        draw.line([(0, 14), (self.width, 14)], fill=0)
 
-        # Border
-        draw.rectangle([(0, 0), (self.width-1, self.height-1)], outline=0)
+        # Compact two-column layout
+        y = 18
+        # Left column
+        draw.text((2, y), f"Devices", font=self.font_tiny, fill=0)
+        draw.text((60, y), f"{stats['devices_count']}", font=self.font_small, fill=0)
+        y += 14
+
+        draw.text((2, y), f"Locations", font=self.font_tiny, fill=0)
+        draw.text((60, y), f"{stats['locations_count']}", font=self.font_small, fill=0)
+        y += 14
+
+        draw.text((2, y), f"Networks", font=self.font_tiny, fill=0)
+        draw.text((60, y), f"{stats['networks_count']}", font=self.font_small, fill=0)
+        y += 14
+
+        draw.text((2, y), f"Probes", font=self.font_tiny, fill=0)
+        draw.text((60, y), f"{stats['probe_requests_count']}", font=self.font_small, fill=0)
+        y += 14
+
+        draw.text((2, y), f"Alerts", font=self.font_tiny, fill=0)
+        draw.text((60, y), f"{stats['alerts_count']}", font=self.font_small, fill=0)
+        y += 14
+
+        # Database size
+        draw.line([(0, y+2), (self.width, y+2)], fill=0)
+        y += 6
+        draw.text((2, y), f"DB: {stats.get('database_size_mb', 0):.1f}MB", font=self.font_tiny, fill=0)
 
         self._display_image(image)
 
     def _show_location_screen(self):
-        """Display current location details."""
+        """Display current location - compact."""
         image = Image.new('1', (self.width, self.height), 255)
         draw = ImageDraw.Draw(image)
-
-        # Header
-        draw.text((5, 2), "Current Location", font=self.font_medium, fill=0)
-        draw.line([(0, 22), (self.width, 22)], fill=0)
 
         try:
             from app.location import get_location_detector
@@ -398,30 +457,59 @@ class EInkDisplay:
             current_loc = detector.get_current_location()
 
             if current_loc:
-                y = 28
-                # Location name
-                draw.text((5, y), current_loc.name[:25], font=self.font_small, fill=0)
-                y += 18
+                # Location name (big)
+                draw.text((2, 2), "LOCATION", font=self.font_tiny, fill=0)
+                draw.line([(0, 12), (self.width, 12)], fill=0)
 
-                # Networks visible
-                draw.text((5, y), f"Networks: {len(current_loc.bssid_pool)}", font=self.font_small, fill=0)
-                y += 16
+                draw.text((2, 16), current_loc.name[:28], font=self.font_medium, fill=0)
 
-                # Visit count
-                draw.text((5, y), f"Visits: {current_loc.detection_count}", font=self.font_small, fill=0)
-                y += 16
+                y = 36
+                # Category
+                cat = current_loc.category[:10].upper()
+                draw.text((2, y), f"Type: {cat}", font=self.font_tiny, fill=0)
+                y += 12
 
-                # First detected
-                first_time = datetime.fromtimestamp(current_loc.first_detected).strftime("%m/%d %H:%M")
-                draw.text((5, y), f"First: {first_time}", font=self.font_tiny, fill=0)
+                # Networks
+                draw.text((2, y), f"Networks: {current_loc.bssid_pool.size()}", font=self.font_tiny, fill=0)
+                y += 12
+
+                # Visits
+                draw.text((2, y), f"Visits: {current_loc.detection_count}", font=self.font_tiny, fill=0)
+                y += 12
+
+                # Check for suspicious devices at this location
+                from app.database import get_db
+                db = get_db()
+                with db.get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT COUNT(DISTINCT device_id)
+                        FROM device_locations
+                        WHERE location_id = ?
+                    """, (current_loc.location_id,))
+                    device_count = cursor.fetchone()[0]
+
+                draw.text((2, y), f"Devices seen: {device_count}", font=self.font_tiny, fill=0)
+                y += 12
+
+                # First/Last seen
+                first = datetime.fromtimestamp(current_loc.first_detected).strftime("%m/%d")
+                last = datetime.fromtimestamp(current_loc.last_detected).strftime("%m/%d %H:%M")
+                draw.line([(0, y), (self.width, y)], fill=0)
+                y += 2
+                draw.text((2, y), f"1st:{first} Last:{last}", font=self.font_tiny, fill=0)
+
             else:
-                draw.text((5, 50), "Location Unknown", font=self.font_small, fill=0)
+                draw.text((2, 2), "LOCATION", font=self.font_small, fill=0)
+                draw.line([(0, 14), (self.width, 14)], fill=0)
+                draw.text((2, 50), "Unknown", font=self.font_medium, fill=0)
+                draw.text((2, 70), "Not enough WiFi", font=self.font_tiny, fill=0)
+                draw.text((2, 82), "networks detected", font=self.font_tiny, fill=0)
 
         except Exception as e:
-            draw.text((5, 50), "Error loading location", font=self.font_small, fill=0)
-
-        # Border
-        draw.rectangle([(0, 0), (self.width-1, self.height-1)], outline=0)
+            logger.error(f"Error in location screen: {e}", exc_info=True)
+            draw.text((2, 2), "LOCATION", font=self.font_small, fill=0)
+            draw.text((2, 50), "Error", font=self.font_small, fill=0)
 
         self._display_image(image)
 
