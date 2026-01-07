@@ -209,6 +209,42 @@ def init_following_detection(fingerprint_manager):
         return None
 
 
+def init_wifi_manager():
+    """Initialize WiFi management system."""
+    try:
+        from app.wifi_manager import initialize_wifi_manager
+
+        logger.info("Initializing WiFi Manager...")
+        success = initialize_wifi_manager()
+
+        if success:
+            from app.wifi_manager import get_wifi_manager
+            manager = get_wifi_manager()
+            status = manager.get_status()
+
+            logger.info(f"WiFi Manager initialized: {status['strategy']} mode")
+
+            if status['strategy'] == 'dual_interface':
+                logger.info("✅ DUAL INTERFACE MODE (optimal)")
+                logger.info(f"  Surveillance: {status['surveillance_interface']['name']} (monitor mode)")
+                logger.info(f"  Management: {status['management_interface']['name']} (managed mode)")
+                logger.info("🛸 No interruptions - USB WiFi handles management!")
+            else:
+                logger.info("⚠️  TIME SLICED MODE (single interface)")
+                logger.info(f"  Interface: {status['surveillance_interface']['name']}")
+                logger.info(f"  Monitor: {config.WIFI_MONITOR_DURATION}s, Managed: {config.WIFI_MANAGED_DURATION}s")
+                logger.info("Brief 30-second interruptions every 4.5 minutes for management")
+
+            return manager
+        else:
+            logger.warning("WiFi Manager initialization failed - continuing without WiFi management")
+            return None
+
+    except Exception as e:
+        logger.error(f"Failed to initialize WiFi manager: {e}", exc_info=True)
+        return None
+
+
 def start_flask_server():
     """Start the Flask-SocketIO web server (Phase 5)."""
     try:
@@ -290,6 +326,11 @@ def main():
     if not following_detector:
         logger.warning("Following detection initialization failed - continuing without Phase 4 features")
 
+    # Initialize WiFi manager
+    wifi_manager = init_wifi_manager()
+    if not wifi_manager:
+        logger.warning("WiFi Manager initialization failed - continuing without WiFi management features")
+
     # Print configuration summary
     logger.info("=" * 60)
     logger.info("CONFIGURATION SUMMARY")
@@ -309,6 +350,8 @@ def main():
     logger.info(f"Debug Mode: {config.DEBUG}")
     logger.info(f"Database: {config.DATABASE_PATH}")
     logger.info(f"Logs: {config.LOG_FILE}")
+    logger.info(f"WiFi Time-Slicing: {config.WIFI_MONITOR_DURATION}s monitor / {config.WIFI_MANAGED_DURATION}s managed")
+    logger.info(f"WiFi AP SSID: {config.WIFI_AP_SSID}")
     logger.info("=" * 60)
     logger.info("")
 

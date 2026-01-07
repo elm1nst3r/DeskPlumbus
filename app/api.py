@@ -1414,6 +1414,209 @@ def register_routes(app: Flask):
             }), 500
 
     # ==========================================
+    # WiFi Management Endpoints
+    # ==========================================
+
+    @app.route('/api/wifi/status')
+    @login_required
+    def api_wifi_status():
+        """Get WiFi manager status."""
+        try:
+            from app.wifi_manager import get_wifi_manager
+
+            manager = get_wifi_manager()
+            status = manager.get_status()
+
+            return jsonify({
+                'success': True,
+                **status
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting WiFi status: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/wifi/scan')
+    @login_required
+    def api_wifi_scan():
+        """Scan for available WiFi networks."""
+        try:
+            from app.wifi_manager import get_wifi_manager
+
+            manager = get_wifi_manager()
+            networks = manager.scan_networks()
+
+            # Convert to dicts
+            networks_data = [
+                {
+                    'ssid': n.ssid,
+                    'bssid': n.bssid,
+                    'frequency': n.frequency,
+                    'signal_strength': n.signal_strength,
+                    'encryption': n.encryption,
+                    'channel': n.channel
+                }
+                for n in networks
+            ]
+
+            return jsonify({
+                'success': True,
+                'networks': networks_data,
+                'count': len(networks_data)
+            })
+
+        except Exception as e:
+            logger.error(f"Error scanning networks: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/wifi/connect', methods=['POST'])
+    @login_required
+    def api_wifi_connect():
+        """Connect to a WiFi network."""
+        try:
+            from app.wifi_manager import get_wifi_manager
+
+            data = request.get_json()
+            ssid = data.get('ssid')
+            password = data.get('password', '')
+
+            if not ssid:
+                return jsonify({
+                    'success': False,
+                    'message': 'SSID is required'
+                }), 400
+
+            manager = get_wifi_manager()
+            success, message = manager.connect_to_network(ssid, password)
+
+            return jsonify({
+                'success': success,
+                'message': message
+            })
+
+        except Exception as e:
+            logger.error(f"Error connecting to network: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/wifi/profiles')
+    @login_required
+    def api_wifi_profiles():
+        """Get saved WiFi network profiles."""
+        try:
+            from app.wifi_manager import get_wifi_manager
+
+            manager = get_wifi_manager()
+
+            profiles_data = [
+                {
+                    'ssid': p.ssid,
+                    'priority': p.priority,
+                    'auto_connect': p.auto_connect
+                }
+                for p in manager.profiles
+            ]
+
+            return jsonify({
+                'success': True,
+                'profiles': profiles_data
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting profiles: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/wifi/profiles/<ssid>', methods=['DELETE'])
+    @login_required
+    def api_wifi_delete_profile(ssid):
+        """Delete a saved network profile."""
+        try:
+            from app.wifi_manager import get_wifi_manager
+
+            manager = get_wifi_manager()
+
+            # Find and remove profile
+            manager.profiles = [p for p in manager.profiles if p.ssid != ssid]
+            manager._save_profiles()
+
+            return jsonify({
+                'success': True,
+                'message': f'Profile "{ssid}" deleted'
+            })
+
+        except Exception as e:
+            logger.error(f"Error deleting profile: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/wifi/interfaces/swap', methods=['POST'])
+    @login_required
+    def api_wifi_swap_interfaces():
+        """Swap surveillance and management interface assignments."""
+        try:
+            from app.wifi_manager import get_wifi_manager
+
+            manager = get_wifi_manager()
+            success, message = manager.swap_interfaces()
+
+            return jsonify({
+                'success': success,
+                'message': message
+            })
+
+        except Exception as e:
+            logger.error(f"Error swapping interfaces: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/wifi/interfaces/assign', methods=['POST'])
+    @login_required
+    def api_wifi_assign_interfaces():
+        """Manually assign interfaces to surveillance and management roles."""
+        try:
+            from app.wifi_manager import get_wifi_manager
+
+            data = request.get_json()
+            surveillance = data.get('surveillance')
+            management = data.get('management')
+
+            if not surveillance or not management:
+                return jsonify({
+                    'success': False,
+                    'message': 'Both surveillance and management interfaces required'
+                }), 400
+
+            manager = get_wifi_manager()
+            success, message = manager.set_interface_assignment(surveillance, management)
+
+            return jsonify({
+                'success': success,
+                'message': message
+            })
+
+        except Exception as e:
+            logger.error(f"Error assigning interfaces: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    # ==========================================
     # Health Check
     # ==========================================
 

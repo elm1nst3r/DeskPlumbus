@@ -358,6 +358,184 @@
                 </p>
             </div>
         </div>
+
+        <!-- WiFi Management Card -->
+        <div class="card">
+            <h2>📡 WiFi Management</h2>
+
+            <div class="setting-section">
+                <h3>Connection Strategy</h3>
+
+                <div id="wifiStrategy" class="version-info">
+                    <div>
+                        <span class="version-label">Current Strategy:</span>
+                        <span class="version-value" id="strategyValue">Loading...</span>
+                    </div>
+                </div>
+
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-top: 15px; border-left: 4px solid #2196f3;">
+                    <strong style="color: #1565c0;">💡 How It Works:</strong>
+                    <ul style="margin: 10px 0 0 20px; color: #1565c0; font-size: 0.9em;">
+                        <li><strong>DUAL INTERFACE</strong> (USB WiFi detected): Built-in WiFi does surveillance (monitor mode), USB WiFi handles management. Best performance! ✅</li>
+                        <li><strong>TIME SLICED</strong> (Single WiFi): Interface switches between surveillance (90%) and management (10%). Brief interruptions every 4.5 minutes.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="interfaceAssignment" class="setting-section" style="display: none;">
+                <h3>Interface Assignment</h3>
+                <p>You have multiple WiFi interfaces. Choose which one to use for surveillance and management.</p>
+
+                <div style="margin: 15px 0;">
+                    <div class="version-info">
+                        <div>
+                            <span class="version-label">Surveillance Interface:</span>
+                            <span class="version-value" id="surveillanceInterface">-</span>
+                        </div>
+                    </div>
+                    <div class="version-info">
+                        <div>
+                            <span class="version-label">Management Interface:</span>
+                            <span class="version-value" id="managementInterface">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-warning" onclick="swapInterfaces()" id="swapBtn">
+                        🔄 Swap Interfaces
+                    </button>
+                    <button class="btn btn-primary" onclick="showInterfaceSelector()" style="margin-left: 10px;">
+                        ⚙️ Manual Assignment
+                    </button>
+                </div>
+
+                <div style="background: #fff3e0; padding: 15px; border-radius: 5px; margin-top: 15px; border-left: 4px solid #ff9800;">
+                    <strong style="color: #e65100;">⚠️ Monitor Mode Note:</strong>
+                    <p style="margin: 10px 0 0 0; color: #e65100; font-size: 0.9em;">
+                        <strong>Monitor mode</strong> is required for probe request capture and device fingerprinting.
+                        <strong>Managed mode</strong> (normal WiFi) can still scan networks and do location tracking,
+                        but won't see individual devices probing.
+                    </p>
+                </div>
+            </div>
+
+            <div class="setting-section">
+                <h3>Network Scanner</h3>
+                <p>Scan for available WiFi networks to connect to.</p>
+
+                <button class="btn btn-primary" onclick="scanNetworks()" id="scanBtn">
+                    📶 Scan Networks
+                </button>
+
+                <div id="networkList" style="margin-top: 15px; display: none;">
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+
+                <div id="wifiStatus" class="update-status"></div>
+            </div>
+
+            <div class="setting-section">
+                <h3>Current Connection</h3>
+
+                <div class="version-info">
+                    <div>
+                        <span class="version-label">Management Interface:</span>
+                        <span class="version-value" id="mgmtInterface">-</span>
+                    </div>
+                </div>
+
+                <div class="version-info">
+                    <div>
+                        <span class="version-label">Connected Network:</span>
+                        <span class="version-value" id="connectedSSID">-</span>
+                    </div>
+                </div>
+
+                <div class="version-info">
+                    <div>
+                        <span class="version-label">IP Address:</span>
+                        <span class="version-value" id="ipAddress">-</span>
+                    </div>
+                </div>
+
+                <div class="version-info">
+                    <div>
+                        <span class="version-label">Signal Strength:</span>
+                        <span class="version-value" id="signalStrength">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-section">
+                <h3>Saved Networks</h3>
+                <p>Manage saved WiFi network profiles. Networks are tried in order of priority.</p>
+
+                <div id="savedNetworksList">
+                    <p style="color: #999;">Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connect to Network Modal -->
+        <div id="connectModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
+            <div style="background: white; border-radius: 10px; padding: 30px; max-width: 500px; width: 90%;">
+                <h3 style="color: #667eea; margin-bottom: 20px;">Connect to WiFi Network</h3>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 5px;">Network:</label>
+                    <input type="text" id="connectSSID" readonly style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px; background: #f5f5f5;">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 5px;">Password:</label>
+                    <input type="password" id="connectPassword" placeholder="Enter WiFi password" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="closeConnectModal()" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" onclick="connectToNetwork()" id="connectBtn">
+                        Connect
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interface Selector Modal -->
+        <div id="interfaceModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
+            <div style="background: white; border-radius: 10px; padding: 30px; max-width: 600px; width: 90%;">
+                <h3 style="color: #667eea; margin-bottom: 20px;">Assign Interfaces Manually</h3>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px;">Surveillance Interface (Monitor Mode):</label>
+                    <select id="surveillanceSelect" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <!-- Populated by JavaScript -->
+                    </select>
+                    <p style="font-size: 0.85em; color: #666; margin-top: 5px;">Used for packet capture and device tracking</p>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px;">Management Interface (Managed Mode):</label>
+                    <select id="managementSelect" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                        <!-- Populated by JavaScript -->
+                    </select>
+                    <p style="font-size: 0.85em; color: #666; margin-top: 5px;">Used for WiFi connection and dashboard access</p>
+                </div>
+
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="closeInterfaceModal()" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" onclick="assignInterfaces()" id="assignBtn">
+                        Assign
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -540,10 +718,391 @@
             }
         }
 
+        // ==================== WiFi Management Functions ====================
+
+        let selectedNetwork = null;
+
+        async function loadWiFiStatus() {
+            try {
+                const response = await fetch('/api/wifi/status');
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update strategy
+                    document.getElementById('strategyValue').textContent = data.strategy.toUpperCase().replace('_', ' ');
+
+                    // Show interface assignment section if dual interface
+                    if (data.strategy === 'dual_interface') {
+                        document.getElementById('interfaceAssignment').style.display = 'block';
+
+                        // Update interface assignments
+                        if (data.surveillance_interface && data.management_interface) {
+                            document.getElementById('surveillanceInterface').textContent =
+                                `${data.surveillance_interface.name} (${data.surveillance_interface.driver})`;
+                            document.getElementById('managementInterface').textContent =
+                                `${data.management_interface.name} (${data.management_interface.driver})`;
+                        }
+                    }
+
+                    // Update management interface info
+                    if (data.management_interface) {
+                        document.getElementById('mgmtInterface').textContent =
+                            `${data.management_interface.name} (${data.management_interface.driver})`;
+                        document.getElementById('connectedSSID').textContent =
+                            data.management_interface.connected_ssid || 'Not connected';
+                        document.getElementById('ipAddress').textContent =
+                            data.management_interface.ip_address || '-';
+                        document.getElementById('signalStrength').textContent =
+                            data.management_interface.signal_strength ? `${data.management_interface.signal_strength} dBm` : '-';
+                    }
+
+                    // Store available interfaces for modal
+                    window.availableInterfaces = data.available_interfaces || [];
+
+                    // Load saved networks
+                    loadSavedNetworks();
+                }
+            } catch (error) {
+                console.error('Error loading WiFi status:', error);
+            }
+        }
+
+        async function swapInterfaces() {
+            const btn = document.getElementById('swapBtn');
+            const statusDiv = document.getElementById('wifiStatus');
+
+            if (!confirm('Swap surveillance and management interfaces? This will restart both interfaces.')) {
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span>Swapping...';
+
+            statusDiv.className = 'update-status info';
+            statusDiv.textContent = '🔄 Swapping interfaces...';
+
+            try {
+                const response = await fetch('/api/wifi/interfaces/swap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    statusDiv.className = 'update-status success';
+                    statusDiv.textContent = `✓ ${data.message}`;
+                    // Reload status
+                    setTimeout(() => loadWiFiStatus(), 2000);
+                } else {
+                    throw new Error(data.message || 'Swap failed');
+                }
+            } catch (error) {
+                console.error('Swap error:', error);
+                statusDiv.className = 'update-status error';
+                statusDiv.textContent = `✗ ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🔄 Swap Interfaces';
+            }
+        }
+
+        function showInterfaceSelector() {
+            if (!window.availableInterfaces || window.availableInterfaces.length < 2) {
+                alert('Need at least 2 WiFi interfaces for manual assignment');
+                return;
+            }
+
+            // Populate selects
+            const surveillanceSelect = document.getElementById('surveillanceSelect');
+            const managementSelect = document.getElementById('managementSelect');
+
+            surveillanceSelect.innerHTML = '';
+            managementSelect.innerHTML = '';
+
+            window.availableInterfaces.forEach(iface => {
+                const option1 = document.createElement('option');
+                option1.value = iface.name;
+                option1.textContent = `${iface.name} (${iface.driver}${iface.is_usb ? ' - USB' : ' - Built-in'})`;
+                surveillanceSelect.appendChild(option1);
+
+                const option2 = document.createElement('option');
+                option2.value = iface.name;
+                option2.textContent = `${iface.name} (${iface.driver}${iface.is_usb ? ' - USB' : ' - Built-in'})`;
+                managementSelect.appendChild(option2);
+            });
+
+            // Set defaults to current assignment
+            const currentStatus = document.getElementById('surveillanceInterface').textContent.split(' ')[0];
+            if (currentStatus) {
+                surveillanceSelect.value = currentStatus;
+            }
+
+            document.getElementById('interfaceModal').style.display = 'flex';
+        }
+
+        function closeInterfaceModal() {
+            document.getElementById('interfaceModal').style.display = 'none';
+        }
+
+        async function assignInterfaces() {
+            const surveillance = document.getElementById('surveillanceSelect').value;
+            const management = document.getElementById('managementSelect').value;
+            const btn = document.getElementById('assignBtn');
+            const statusDiv = document.getElementById('wifiStatus');
+
+            if (surveillance === management) {
+                alert('Surveillance and management must use different interfaces');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span>Assigning...';
+
+            statusDiv.className = 'update-status info';
+            statusDiv.textContent = '⚙️ Assigning interfaces...';
+
+            try {
+                const response = await fetch('/api/wifi/interfaces/assign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ surveillance, management })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    statusDiv.className = 'update-status success';
+                    statusDiv.textContent = `✓ ${data.message}`;
+                    closeInterfaceModal();
+                    // Reload status
+                    setTimeout(() => loadWiFiStatus(), 2000);
+                } else {
+                    throw new Error(data.message || 'Assignment failed');
+                }
+            } catch (error) {
+                console.error('Assignment error:', error);
+                statusDiv.className = 'update-status error';
+                statusDiv.textContent = `✗ ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Assign';
+            }
+        }
+
+        async function scanNetworks() {
+            const btn = document.getElementById('scanBtn');
+            const networkList = document.getElementById('networkList');
+            const statusDiv = document.getElementById('wifiStatus');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span>Scanning...';
+
+            statusDiv.className = 'update-status info';
+            statusDiv.textContent = '📶 Scanning for WiFi networks... This may take a moment.';
+
+            try {
+                const response = await fetch('/api/wifi/scan');
+                const data = await response.json();
+
+                if (data.success && data.networks) {
+                    displayNetworks(data.networks);
+                    networkList.style.display = 'block';
+                    statusDiv.className = 'update-status success';
+                    statusDiv.textContent = `✓ Found ${data.networks.length} networks`;
+                } else {
+                    throw new Error(data.error || 'Scan failed');
+                }
+            } catch (error) {
+                console.error('Scan error:', error);
+                statusDiv.className = 'update-status error';
+                statusDiv.textContent = `✗ Scan failed: ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '📶 Scan Networks';
+            }
+        }
+
+        function displayNetworks(networks) {
+            const networkList = document.getElementById('networkList').querySelector('div');
+            networkList.innerHTML = '';
+
+            networks.forEach(network => {
+                const networkCard = document.createElement('div');
+                networkCard.style.cssText = `
+                    background: white;
+                    border: 2px solid #e0e0e0;
+                    border-radius: 5px;
+                    padding: 15px;
+                    margin: 10px 0;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                `;
+                networkCard.onmouseover = () => networkCard.style.borderColor = '#667eea';
+                networkCard.onmouseout = () => networkCard.style.borderColor = '#e0e0e0';
+                networkCard.onclick = () => openConnectModal(network);
+
+                const signalBars = getSignalBars(network.signal_strength);
+                const encryptionIcon = network.encryption === 'Open' ? '🔓' : '🔒';
+
+                networkCard.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 1.1em; color: #333;">
+                                ${encryptionIcon} ${network.ssid}
+                            </div>
+                            <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                ${network.encryption} • Channel ${network.channel} • ${network.frequency} MHz
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 1.5em;">${signalBars}</div>
+                            <div style="font-size: 0.85em; color: #999;">${network.signal_strength} dBm</div>
+                        </div>
+                    </div>
+                `;
+
+                networkList.appendChild(networkCard);
+            });
+        }
+
+        function getSignalBars(signal) {
+            // signal is in dBm (negative values, closer to 0 is better)
+            if (signal >= -50) return '📶📶📶📶';
+            if (signal >= -60) return '📶📶📶';
+            if (signal >= -70) return '📶📶';
+            return '📶';
+        }
+
+        function openConnectModal(network) {
+            selectedNetwork = network;
+            document.getElementById('connectSSID').value = network.ssid;
+            document.getElementById('connectPassword').value = '';
+            document.getElementById('connectModal').style.display = 'flex';
+        }
+
+        function closeConnectModal() {
+            document.getElementById('connectModal').style.display = 'none';
+            selectedNetwork = null;
+        }
+
+        async function connectToNetwork() {
+            const ssid = document.getElementById('connectSSID').value;
+            const password = document.getElementById('connectPassword').value;
+            const btn = document.getElementById('connectBtn');
+            const statusDiv = document.getElementById('wifiStatus');
+
+            if (!password && selectedNetwork.encryption !== 'Open') {
+                alert('Please enter the WiFi password');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span>Connecting...';
+
+            statusDiv.className = 'update-status info';
+            statusDiv.textContent = `🔗 Connecting to ${ssid}... This may take up to 30 seconds.`;
+
+            try {
+                const response = await fetch('/api/wifi/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ssid, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    statusDiv.className = 'update-status success';
+                    statusDiv.textContent = `✓ ${data.message}`;
+                    closeConnectModal();
+                    // Reload status after connection
+                    setTimeout(() => loadWiFiStatus(), 2000);
+                } else {
+                    throw new Error(data.message || 'Connection failed');
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                statusDiv.className = 'update-status error';
+                statusDiv.textContent = `✗ ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Connect';
+            }
+        }
+
+        async function loadSavedNetworks() {
+            try {
+                const response = await fetch('/api/wifi/profiles');
+                const data = await response.json();
+
+                const listDiv = document.getElementById('savedNetworksList');
+
+                if (data.success && data.profiles && data.profiles.length > 0) {
+                    listDiv.innerHTML = '';
+
+                    data.profiles.forEach(profile => {
+                        const profileCard = document.createElement('div');
+                        profileCard.style.cssText = `
+                            background: #f8f9fa;
+                            border-left: 4px solid #667eea;
+                            padding: 15px;
+                            margin: 10px 0;
+                            border-radius: 5px;
+                        `;
+
+                        profileCard.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 600; color: #333;">🔒 ${profile.ssid}</div>
+                                    <div style="font-size: 0.85em; color: #666; margin-top: 3px;">
+                                        Priority: ${profile.priority} • Auto-connect: ${profile.auto_connect ? 'Yes' : 'No'}
+                                    </div>
+                                </div>
+                                <button class="btn btn-secondary" style="padding: 5px 10px; font-size: 0.85em;" onclick="deleteProfile('${profile.ssid}')">
+                                    Delete
+                                </button>
+                            </div>
+                        `;
+
+                        listDiv.appendChild(profileCard);
+                    });
+                } else {
+                    listDiv.innerHTML = '<p style="color: #999;">No saved networks</p>';
+                }
+            } catch (error) {
+                console.error('Error loading profiles:', error);
+            }
+        }
+
+        async function deleteProfile(ssid) {
+            if (!confirm(`Delete saved network "${ssid}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/wifi/profiles/${encodeURIComponent(ssid)}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    loadSavedNetworks();
+                } else {
+                    alert('Failed to delete profile');
+                }
+            } catch (error) {
+                console.error('Error deleting profile:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
         // ==================== Initialization ====================
 
         window.addEventListener('DOMContentLoaded', () => {
             loadCurrentVersion();
+            loadWiFiStatus();
         });
     </script>
 </body>

@@ -348,6 +348,29 @@ Do NOT use for surveillance of others. Comply with local privacy laws.
 """
 
 # ===========================
+# WiFi Management Settings
+# ===========================
+
+# Time-slicing durations (when using single WiFi interface)
+WIFI_MONITOR_DURATION = int(os.getenv('WIFI_MONITOR_DURATION', 270))  # 4.5 minutes (90%)
+WIFI_MANAGED_DURATION = int(os.getenv('WIFI_MANAGED_DURATION', 30))    # 30 seconds (10%)
+
+# AP (Access Point) mode configuration
+WIFI_AP_SSID = os.getenv('WIFI_AP_SSID', 'Plumbus-WiFi')
+WIFI_AP_PASSWORD = os.getenv('WIFI_AP_PASSWORD', 'plumbus123')
+WIFI_AP_IP = os.getenv('WIFI_AP_IP', '192.168.4.1')
+WIFI_AP_CHANNEL = int(os.getenv('WIFI_AP_CHANNEL', 6))
+
+# Auto-connect to saved networks on boot
+WIFI_AUTO_CONNECT = os.getenv('WIFI_AUTO_CONNECT', 'true').lower() == 'true'
+
+# Network scan timeout (seconds)
+WIFI_SCAN_TIMEOUT = int(os.getenv('WIFI_SCAN_TIMEOUT', 15))
+
+# Connection timeout (seconds)
+WIFI_CONNECT_TIMEOUT = int(os.getenv('WIFI_CONNECT_TIMEOUT', 30))
+
+# ===========================
 # Configuration Validation
 # ===========================
 
