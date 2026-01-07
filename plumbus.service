@@ -1,5 +1,5 @@
 [Unit]
-Description=WiFi Desk Plumbus - Surveillance Detection Service (Phase 6)
+Description=WiFi Desk Plumbus - Surveillance Detection Service
 Documentation=https://github.com/elm1nst3r/DeskPlumbus
 After=network.target network-online.target
 Wants=network-online.target
@@ -16,7 +16,7 @@ Environment="PYTHONUNBUFFERED=1"
 Environment="FLASK_ENV=production"
 Environment="FLASK_DEBUG=False"
 
-# Load environment variables from .env file (Phase 6)
+# Load environment variables from .env file
 EnvironmentFile=-{PROJECT_DIR}/.env
 
 # WiFi monitor mode setup (requires sudo/root)
@@ -63,7 +63,7 @@ Nice=5
 IOSchedulingClass=best-effort
 IOSchedulingPriority=6
 
-# Security hardening (Phase 6)
+# Security hardening
 # Uncomment these for additional security (may require adjustments)
 
 # Prevent privilege escalation

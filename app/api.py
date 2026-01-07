@@ -15,6 +15,8 @@ Phase 5 Implementation:
 """
 
 import logging
+import time
+import os
 from datetime import datetime
 from flask import Flask, jsonify, render_template, request
 from flask_socketio import SocketIO
@@ -1848,6 +1850,177 @@ def register_routes(app: Flask):
 
         except Exception as e:
             logger.error(f"Error clearing e-ink display: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    # ==========================================
+    # System Management
+    # ==========================================
+
+    @app.route('/api/system/logs')
+    @login_required
+    def api_system_logs():
+        """Get system logs."""
+        try:
+            lines = int(request.args.get('lines', 100))
+            lines = min(lines, 1000)  # Max 1000 lines
+
+            log_file = config.LOG_FILE
+
+            if not os.path.exists(log_file):
+                return jsonify({
+                    'success': True,
+                    'logs': [],
+                    'message': 'Log file not found'
+                })
+
+            # Read last N lines of log file
+            import subprocess
+            result = subprocess.run(['tail', '-n', str(lines), log_file],
+                                  capture_output=True, text=True, timeout=5)
+
+            log_lines = result.stdout.strip().split('\n') if result.stdout else []
+
+            return jsonify({
+                'success': True,
+                'logs': log_lines,
+                'log_file': log_file
+            })
+
+        except Exception as e:
+            logger.error(f"Error reading logs: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/system/reboot', methods=['POST'])
+    @login_required
+    def api_system_reboot():
+        """Reboot the system."""
+        try:
+            logger.warning("System reboot requested by user")
+
+            # Schedule reboot in 3 seconds to allow response to be sent
+            import threading
+            def do_reboot():
+                time.sleep(3)
+                os.system('sudo reboot')
+
+            thread = threading.Thread(target=do_reboot, daemon=True)
+            thread.start()
+
+            return jsonify({
+                'success': True,
+                'message': 'System rebooting in 3 seconds...'
+            })
+
+        except Exception as e:
+            logger.error(f"Error rebooting system: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/system/shutdown', methods=['POST'])
+    @login_required
+    def api_system_shutdown():
+        """Shutdown the system."""
+        try:
+            logger.warning("System shutdown requested by user")
+
+            # Schedule shutdown in 3 seconds to allow response to be sent
+            import threading
+            def do_shutdown():
+                time.sleep(3)
+                os.system('sudo shutdown -h now')
+
+            thread = threading.Thread(target=do_shutdown, daemon=True)
+            thread.start()
+
+            return jsonify({
+                'success': True,
+                'message': 'System shutting down in 3 seconds...'
+            })
+
+        except Exception as e:
+            logger.error(f"Error shutting down system: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/system/password', methods=['POST'])
+    @login_required
+    def api_system_change_password():
+        """Change web interface password."""
+        try:
+            data = request.get_json()
+            current_password = data.get('current_password')
+            new_password = data.get('new_password')
+
+            if not current_password or not new_password:
+                return jsonify({
+                    'success': False,
+                    'message': 'Current and new passwords required'
+                }), 400
+
+            # Verify current password
+            if current_password != config.WEB_PASSWORD:
+                return jsonify({
+                    'success': False,
+                    'message': 'Current password is incorrect'
+                }), 401
+
+            # Validate new password
+            if len(new_password) < 8:
+                return jsonify({
+                    'success': False,
+                    'message': 'New password must be at least 8 characters'
+                }), 400
+
+            # Update password in .env file
+            env_file = config.BASE_DIR / '.env'
+
+            if env_file.exists():
+                # Read current .env content
+                with open(env_file, 'r') as f:
+                    lines = f.readlines()
+
+                # Update WEB_PASSWORD line
+                updated = False
+                for i, line in enumerate(lines):
+                    if line.startswith('WEB_PASSWORD='):
+                        lines[i] = f'WEB_PASSWORD={new_password}\n'
+                        updated = True
+                        break
+
+                # If WEB_PASSWORD not found, add it
+                if not updated:
+                    lines.append(f'\nWEB_PASSWORD={new_password}\n')
+
+                # Write back to .env
+                with open(env_file, 'w') as f:
+                    f.writelines(lines)
+            else:
+                # Create .env file with new password
+                with open(env_file, 'w') as f:
+                    f.write(f'WEB_PASSWORD={new_password}\n')
+
+            # Update runtime config
+            config.WEB_PASSWORD = new_password
+
+            logger.info("Web interface password changed successfully")
+
+            return jsonify({
+                'success': True,
+                'message': 'Password changed successfully! Please use the new password on next login.'
+            })
+
+        except Exception as e:
+            logger.error(f"Error changing password: {e}", exc_info=True)
             return jsonify({
                 'success': False,
                 'message': str(e)

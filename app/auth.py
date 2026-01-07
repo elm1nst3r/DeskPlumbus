@@ -1,7 +1,7 @@
 """
 WiFi Desk Plumbus - Authentication Module
 
-Simple password-based authentication for web interface (Phase 6).
+Simple password-based authentication for web interface.
 
 This provides basic protection for the web dashboard. For production use,
 consider implementing:
@@ -160,11 +160,6 @@ LOGIN_TEMPLATE = """
                 Access Plumbus Sentinel
             </button>
         </form>
-
-        <p style="margin-top: 20px; text-align: center; color: #999; font-size: 0.85em;">
-            Default password: <code>plumbus123</code><br>
-            (Change in .env file)
-        </p>
     </div>
 </body>
 </html>
