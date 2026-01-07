@@ -105,9 +105,9 @@ class WiFiManager:
         self.profiles_file = config.DATA_DIR / "network_profiles.json"
         self.profiles: List[NetworkProfile] = []
 
-        # AP configuration
-        self.ap_ssid = "Plumbus-WiFi"
-        self.ap_password = "plumbus123"
+        # AP configuration (looks like an iPhone hotspot for stealth)
+        self.ap_ssid = "Peter's - iPhone"
+        self.ap_password = "DeskPlumbus123"
         self.ap_ip = "192.168.4.1"
 
         logger.info("WiFi Manager initialized")

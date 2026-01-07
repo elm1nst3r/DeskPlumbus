@@ -355,9 +355,9 @@ Do NOT use for surveillance of others. Comply with local privacy laws.
 WIFI_MONITOR_DURATION = int(os.getenv('WIFI_MONITOR_DURATION', 270))  # 4.5 minutes (90%)
 WIFI_MANAGED_DURATION = int(os.getenv('WIFI_MANAGED_DURATION', 30))    # 30 seconds (10%)
 
-# AP (Access Point) mode configuration
-WIFI_AP_SSID = os.getenv('WIFI_AP_SSID', 'Plumbus-WiFi')
-WIFI_AP_PASSWORD = os.getenv('WIFI_AP_PASSWORD', 'plumbus123')
+# AP (Access Point) mode configuration (looks like iPhone hotspot for stealth)
+WIFI_AP_SSID = os.getenv('WIFI_AP_SSID', "Peter's - iPhone")
+WIFI_AP_PASSWORD = os.getenv('WIFI_AP_PASSWORD', 'DeskPlumbus123')
 WIFI_AP_IP = os.getenv('WIFI_AP_IP', '192.168.4.1')
 WIFI_AP_CHANNEL = int(os.getenv('WIFI_AP_CHANNEL', 6))
 
