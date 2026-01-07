@@ -918,9 +918,26 @@
 
                     // Load saved networks
                     loadSavedNetworks();
+                } else {
+                    // Show error message
+                    const statusDiv = document.getElementById('wifiStatus');
+                    statusDiv.className = 'update-status error';
+                    statusDiv.textContent = `⚠️ WiFi Manager Error: ${data.error || 'Unknown error'}`;
+                    statusDiv.style.display = 'block';
+
+                    // Set default values
+                    document.getElementById('strategyValue').textContent = 'Unavailable';
+                    document.getElementById('mgmtInterface').textContent = 'N/A';
+                    document.getElementById('connectedSSID').textContent = 'N/A';
+                    document.getElementById('ipAddress').textContent = 'N/A';
+                    document.getElementById('signalStrength').textContent = 'N/A';
                 }
             } catch (error) {
                 console.error('Error loading WiFi status:', error);
+                const statusDiv = document.getElementById('wifiStatus');
+                statusDiv.className = 'update-status error';
+                statusDiv.textContent = `⚠️ Failed to load WiFi status: ${error.message}`;
+                statusDiv.style.display = 'block';
             }
         }
 
@@ -1717,6 +1734,7 @@
             loadCurrentVersion();
             loadWiFiStatus();
             loadEinkStatus();
+            loadMoshStatus();  // Load mosh status on page load
             loadLogs();  // Load logs on page load
         });
     </script>

@@ -1427,6 +1427,12 @@ def register_routes(app: Flask):
             from app.wifi_manager import get_wifi_manager
 
             manager = get_wifi_manager()
+            if manager is None:
+                return jsonify({
+                    'success': False,
+                    'error': 'WiFi manager not initialized'
+                }), 503
+
             status = manager.get_status()
 
             return jsonify({
@@ -1449,6 +1455,12 @@ def register_routes(app: Flask):
             from app.wifi_manager import get_wifi_manager
 
             manager = get_wifi_manager()
+            if manager is None:
+                return jsonify({
+                    'success': False,
+                    'error': 'WiFi manager not initialized'
+                }), 503
+
             networks = manager.scan_networks()
 
             # Convert to dicts
