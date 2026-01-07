@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 5 WebSocket Test - Plumbus</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #00ff41;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+            text-shadow: 0 0 10px #00ff41;
+        }
+
+        .connection-status {
+            text-align: center;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .connected {
+            background: #0f4;
+            color: #000;
+        }
+
+        .disconnected {
+            background: #f44;
+            color: #fff;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #16213e;
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .card h2 {
+            color: #00ff41;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #00ff41;
+            padding-bottom: 10px;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .stat-label {
+            color: #aaa;
+        }
+
+        .stat-value {
+            color: #00ff41;
+            font-weight: bold;
+        }
+
+        .log {
+            background: #0a0e27;
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log h2 {
+            color: #00ff41;
+            margin-bottom: 15px;
+        }
+
+        .log-entry {
+            padding: 5px;
+            margin: 5px 0;
+            border-left: 3px solid #00ff41;
+            padding-left: 10px;
+            font-size: 0.9em;
+        }
+
+        .log-entry.event {
+            border-left-color: #0ff;
+        }
+
+        .log-entry.data {
+            border-left-color: #f0f;
+        }
+
+        .timestamp {
+            color: #888;
+            font-size: 0.85em;
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .update-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #00ff41;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛸 Phase 5 WebSocket Test - Real-time Updates 🛸</h1>
+
+        <div id="connectionStatus" class="connection-status disconnected">
+            ⚠️ Connecting to WebSocket server...
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>System Status <span class="update-indicator" id="statusIndicator"></span></h2>
+                <div class="stat">
+                    <span class="stat-label">Status:</span>
+                    <span class="stat-value" id="status">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">WiFi Interface:</span>
+                    <span class="stat-value" id="wifiInterface">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Scan Interval:</span>
+                    <span class="stat-value" id="scanInterval">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Database Size:</span>
+                    <span class="stat-value" id="dbSize">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Last Update:</span>
+                    <span class="stat-value" id="lastUpdate">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Database Statistics <span class="update-indicator"></span></h2>
+                <div class="stat">
+                    <span class="stat-label">Devices:</span>
+                    <span class="stat-value" id="devicesCount">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Locations:</span>
+                    <span class="stat-value" id="locationsCount">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Networks:</span>
+                    <span class="stat-value" id="networksCount">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Probes:</span>
+                    <span class="stat-value" id="probesCount">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Alerts:</span>
+                    <span class="stat-value" id="alertsCount">0</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Fingerprinting (Phase 2) <span class="update-indicator"></span></h2>
+                <div class="stat">
+                    <span class="stat-label">Total Fingerprints:</span>
+                    <span class="stat-value" id="totalFingerprints">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">MAC Addresses:</span>
+                    <span class="stat-value" id="totalMacs">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Probes Processed:</span>
+                    <span class="stat-value" id="probesProcessed">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Avg SSIDs/Device:</span>
+                    <span class="stat-value" id="avgSsids">0</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Location Detection (Phase 3) <span class="update-indicator"></span></h2>
+                <div class="stat">
+                    <span class="stat-label">Current Location:</span>
+                    <span class="stat-value" id="currentLocation">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Total Locations:</span>
+                    <span class="stat-value" id="totalLocations">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Networks Visible:</span>
+                    <span class="stat-value" id="networksVisible">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Location Confidence:</span>
+                    <span class="stat-value" id="locationConfidence">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Following Detection (Phase 4) <span class="update-indicator"></span></h2>
+                <div class="stat">
+                    <span class="stat-label">Tracked Devices:</span>
+                    <span class="stat-value" id="trackedDevices">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Whitelisted:</span>
+                    <span class="stat-value" id="whitelistedDevices">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Multi-location:</span>
+                    <span class="stat-value" id="multiLocationDevices">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Recent Alerts:</span>
+                    <span class="stat-value" id="recentAlerts">0</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Device Status <span class="update-indicator"></span></h2>
+                <div class="stat">
+                    <span class="stat-label">Known Devices:</span>
+                    <span class="stat-value" id="knownDevices">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Neutral Devices:</span>
+                    <span class="stat-value" id="neutralDevices">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Suspicious Devices:</span>
+                    <span class="stat-value" id="suspiciousDevices">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="log">
+            <h2>📡 WebSocket Event Log (Real-time)</h2>
+            <div id="eventLog"></div>
+        </div>
+    </div>
+
+    <script>
+        // Connect to WebSocket server
+        const socket = io('http://localhost:5001');
+
+        const eventLog = document.getElementById('eventLog');
+        const connectionStatus = document.getElementById('connectionStatus');
+
+        let eventCount = 0;
+        const maxLogEntries = 50;
+
+        function addLogEntry(type, message) {
+            eventCount++;
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            eventLog.insertBefore(entry, eventLog.firstChild);
+
+            // Keep only last N entries
+            while (eventLog.children.length > maxLogEntries) {
+                eventLog.removeChild(eventLog.lastChild);
+            }
+        }
+
+        // Connection events
+        socket.on('connect', function() {
+            console.log('✅ Connected to WebSocket server');
+            connectionStatus.className = 'connection-status connected';
+            connectionStatus.innerHTML = '✅ Connected to WebSocket - Receiving real-time updates!';
+            addLogEntry('event', '✅ <strong>Connected</strong> to WebSocket server');
+        });
+
+        socket.on('disconnect', function() {
+            console.log('❌ Disconnected from WebSocket server');
+            connectionStatus.className = 'connection-status disconnected';
+            connectionStatus.innerHTML = '❌ Disconnected from WebSocket - Reconnecting...';
+            addLogEntry('event', '❌ <strong>Disconnected</strong> from server');
+        });
+
+        // System status updates
+        socket.on('status_update', function(data) {
+            console.log('📊 Status update:', data);
+            document.getElementById('status').textContent = data.status.toUpperCase();
+            document.getElementById('wifiInterface').textContent = data.wifi_interface;
+            document.getElementById('scanInterval').textContent = data.scan_interval + 's';
+            document.getElementById('dbSize').textContent = data.database_size_mb.toFixed(2) + ' MB';
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            addLogEntry('data', '📊 Status update received');
+        });
+
+        // Statistics updates
+        socket.on('statistics_update', function(data) {
+            console.log('📈 Statistics update:', data);
+            document.getElementById('devicesCount').textContent = data.database.devices_count;
+            document.getElementById('locationsCount').textContent = data.database.locations_count;
+            document.getElementById('networksCount').textContent = data.database.network_observations_count;
+            document.getElementById('probesCount').textContent = data.database.probe_requests_count;
+            document.getElementById('alertsCount').textContent = data.database.alerts_count;
+
+            document.getElementById('knownDevices').textContent = data.devices_by_status.known;
+            document.getElementById('neutralDevices').textContent = data.devices_by_status.neutral;
+            document.getElementById('suspiciousDevices').textContent = data.devices_by_status.suspicious;
+
+            addLogEntry('data', '📈 Statistics update received');
+        });
+
+        // Fingerprinting updates
+        socket.on('fingerprint_stats_update', function(data) {
+            console.log('🔍 Fingerprint stats:', data);
+            document.getElementById('totalFingerprints').textContent = data.total_fingerprints;
+            document.getElementById('totalMacs').textContent = data.total_mac_addresses;
+            document.getElementById('probesProcessed').textContent = data.probes_processed;
+            document.getElementById('avgSsids').textContent = data.average_ssids_per_device;
+            addLogEntry('data', '🔍 Fingerprinting stats received');
+        });
+
+        // Location updates
+        socket.on('location_update', function(data) {
+            console.log('📍 Location update:', data);
+            if (data.current_location) {
+                document.getElementById('currentLocation').textContent = data.current_location.name;
+                document.getElementById('networksVisible').textContent = data.current_location.bssid_count;
+                document.getElementById('locationConfidence').textContent = (data.current_location.confidence * 100).toFixed(1) + '%';
+            } else {
+                document.getElementById('currentLocation').textContent = 'Unknown';
+                document.getElementById('networksVisible').textContent = '-';
+                document.getElementById('locationConfidence').textContent = '-';
+            }
+            document.getElementById('totalLocations').textContent = data.statistics.total_locations;
+            addLogEntry('data', '📍 Location update received');
+        });
+
+        // Following detection updates
+        socket.on('following_stats_update', function(data) {
+            console.log('🕵️ Following stats:', data);
+            document.getElementById('trackedDevices').textContent = data.total_tracked_devices;
+            document.getElementById('whitelistedDevices').textContent = data.whitelisted_devices;
+            document.getElementById('multiLocationDevices').textContent = data.multi_location_devices;
+            addLogEntry('data', '🕵️ Following detection stats received');
+        });
+
+        // Alerts updates
+        socket.on('alerts_update', function(data) {
+            console.log('🚨 Alerts update:', data);
+            document.getElementById('recentAlerts').textContent = data.count;
+            if (data.count > 0) {
+                addLogEntry('data', `🚨 <strong>${data.count} alerts</strong> in last 24h`);
+            }
+        });
+
+        // New alert notification
+        socket.on('new_alert', function(data) {
+            console.log('🚨 NEW ALERT:', data);
+            addLogEntry('event', `🚨 <strong>NEW ALERT:</strong> ${data.alert_type} - Device ${data.device_id ? data.device_id.substring(0, 8) : 'unknown'}`);
+        });
+
+        // Initial log message
+        addLogEntry('event', '🚀 WebSocket test page loaded');
+    </script>
+</body>
+</html>

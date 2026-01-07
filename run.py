@@ -41,8 +41,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def print_phase3_banner():
-    """Print the Phase 3 banner."""
+def print_phase5_banner():
+    """Print the Phase 5 banner."""
     banner = """
     ╔═══════════════════════════════════════════════════════════╗
     ║                                                           ║
@@ -53,9 +53,9 @@ def print_phase3_banner():
     ║    ██║     ███████╗╚██████╔╝██║ ╚═╝ ██║██████╔╝╚██████╔╝ ║
     ║    ╚═╝     ╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═════╝  ╚═════╝  ║
     ║                                                           ║
-    ║           PHASE 3: Location Detection Active!            ║
+    ║       PHASE 5: Real-time Analytics Active!               ║
     ║      Plumbus Sentinel initialized... Everyone has one!   ║
-    ║    🛸 Tracking devices & locations across WiFi! 🛸        ║
+    ║    🛸 Live updates & advanced charts! 🛸                  ║
     ║                                                           ║
     ╚═══════════════════════════════════════════════════════════╝
     """
@@ -181,16 +181,42 @@ def init_location_detection(fingerprint_manager):
         return None
 
 
-def start_flask_server():
-    """Start the Flask web server."""
+def init_following_detection(fingerprint_manager):
+    """Initialize Phase 4 following device detection system."""
     try:
-        from app.api import create_app
+        from app.following import init_following_detector
 
-        logger.info("Creating Flask application...")
-        app = create_app()
+        logger.info("Initializing Following Detection (Phase 4)...")
+        detector = init_following_detector()
+
+        # Connect to fingerprint manager
+        if fingerprint_manager:
+            fingerprint_manager.set_following_detector(detector)
+            logger.info("Following detector connected to fingerprint manager")
+
+        stats = detector.get_statistics()
+        logger.info(f"Following detection initialized: {stats['whitelisted_devices']} whitelisted devices")
+        logger.info(f"Correlation threshold: {stats['correlation_threshold'] * 100}%")
+        logger.info(f"Time window: {stats['time_window_hours']} hours")
+        logger.info("🛸 Plumbus can now detect following devices!")
+
+        return detector
+
+    except Exception as e:
+        logger.error(f"Failed to initialize following detection: {e}", exc_info=True)
+        return None
+
+
+def start_flask_server():
+    """Start the Flask-SocketIO web server (Phase 5)."""
+    try:
+        from app.api import create_socketio_app
+
+        logger.info("Creating Flask-SocketIO application...")
+        app, socketio = create_socketio_app()
 
         logger.info("=" * 60)
-        logger.info("PHASE 1: WiFi Desk Plumbus Ready!")
+        logger.info("PHASE 5: WiFi Desk Plumbus Ready!")
         logger.info("=" * 60)
         logger.info("")
         logger.info("Web Interface:")
@@ -203,31 +229,37 @@ def start_flask_server():
         logger.info(f"  Devices: http://localhost:{config.FLASK_PORT}/api/devices")
         logger.info(f"  Health:  http://localhost:{config.FLASK_PORT}/health")
         logger.info("")
+        logger.info("WebSocket Features (Phase 5):")
+        logger.info(f"  Real-time updates enabled")
+        logger.info(f"  Update interval: {config.WEBSOCKET_UPDATE_INTERVAL}s")
+        logger.info("")
         logger.info("Press Ctrl+C to stop the Plumbus")
         logger.info("=" * 60)
         logger.info("")
 
-        # Run Flask server
-        app.run(
+        # Run Flask-SocketIO server
+        socketio.run(
+            app,
             host=config.FLASK_HOST,
             port=config.FLASK_PORT,
-            debug=config.DEBUG
+            debug=config.DEBUG,
+            allow_unsafe_werkzeug=True  # For development only
         )
 
     except KeyboardInterrupt:
         logger.info("\nPlumbus shutdown requested by user")
     except Exception as e:
-        logger.error(f"Error running Flask server: {e}", exc_info=True)
+        logger.error(f"Error running Flask-SocketIO server: {e}", exc_info=True)
         return False
 
     return True
 
 
 def main():
-    """Main entry point for Phase 3."""
-    print_phase3_banner()
+    """Main entry point for Phase 5."""
+    print_phase5_banner()
 
-    logger.info("Starting WiFi Desk Plumbus - Phase 3")
+    logger.info("Starting WiFi Desk Plumbus - Phase 5")
     logger.info(f"Version: {config.APP_VERSION}")
     logger.info(f"Project directory: {PROJECT_ROOT}")
 
@@ -251,17 +283,25 @@ def main():
     if not location_detector:
         logger.warning("Location detection initialization failed - continuing without Phase 3 features")
 
+    # Initialize following detection (Phase 4)
+    following_detector = init_following_detection(fingerprint_manager)
+    if not following_detector:
+        logger.warning("Following detection initialization failed - continuing without Phase 4 features")
+
     # Print configuration summary
     logger.info("=" * 60)
     logger.info("CONFIGURATION SUMMARY")
     logger.info("=" * 60)
-    logger.info(f"Phase: 3 (Location Detection)")
+    logger.info(f"Phase: 5 (Real-time Analytics)")
     logger.info(f"WiFi Interface: {config.WIFI_INTERFACE}")
     logger.info(f"Scan Interval: {config.SCAN_INTERVAL} seconds")
     logger.info(f"Device Similarity Threshold: {config.SIMILARITY_THRESHOLD * 100}%")
     logger.info(f"Location Similarity Threshold: {config.LOCATION_SIMILARITY_THRESHOLD * 100}%")
+    logger.info(f"Following Correlation Threshold: {config.FOLLOWING_CORRELATION_THRESHOLD * 100}%")
     logger.info(f"Min SSIDs for Fingerprint: {config.MIN_SSIDS_FOR_FINGERPRINT}")
     logger.info(f"Min BSSIDs for Location: {config.MIN_BSSIDS_FOR_LOCATION}")
+    logger.info(f"Min Locations for Following Alert: {config.MIN_LOCATIONS_FOR_FOLLOWING}")
+    logger.info(f"Following Time Window: {config.FOLLOWING_TIME_WINDOW_HOURS} hours")
     logger.info(f"Data Retention: {config.DATA_RETENTION_DAYS} days")
     logger.info(f"Flask Port: {config.FLASK_PORT}")
     logger.info(f"Debug Mode: {config.DEBUG}")
@@ -276,9 +316,11 @@ def main():
     logger.info("  - Monitor mode support (Raspberry Pi)")
     logger.info("  - Scapy library")
     logger.info("")
-    logger.info("Phase 3 includes location detection using WiFi network fingerprints!")
+    logger.info("Phase 5 includes real-time updates and analytics!")
     logger.info("  - Phase 2: SSID fingerprinting defeats MAC randomization")
     logger.info("  - Phase 3: Location tracking via visible WiFi networks")
+    logger.info("  - Phase 4: Detect devices following you across locations")
+    logger.info("  - Phase 5: Real-time WebSocket updates & advanced charts")
     logger.info("Active WiFi monitoring will be enabled when running on Raspberry Pi with sudo.")
     logger.info("")
 

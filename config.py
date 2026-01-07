@@ -108,13 +108,25 @@ LOCATION_CATEGORIES = [
 ]
 
 # ===========================
-# Following Device Detection
+# Following Device Detection (Phase 4)
 # ===========================
 
-# Number of locations before triggering alert
+# Correlation score threshold for following alert (0.0 to 1.0)
+# 0.5 = 50% correlation required to trigger alert
+FOLLOWING_CORRELATION_THRESHOLD = float(os.getenv('FOLLOWING_CORRELATION_THRESHOLD', 0.5))
+
+# Time window for following detection (hours)
+# Only consider device appearances within this window
+FOLLOWING_TIME_WINDOW_HOURS = int(os.getenv('FOLLOWING_TIME_WINDOW_HOURS', 24))
+
+# Minimum number of location overlaps before alerting
+# Device must appear at this many of your locations to be suspicious
+MIN_LOCATIONS_FOR_FOLLOWING = int(os.getenv('MIN_LOCATIONS_FOR_FOLLOWING', 2))
+
+# Number of locations before triggering alert (legacy)
 ALERT_LOCATION_COUNT = int(os.getenv('ALERT_LOCATION_COUNT', 3))
 
-# Time window for correlation (seconds)
+# Time window for correlation (seconds) (legacy)
 # 1800 = 30 minutes
 ALERT_TIME_WINDOW = int(os.getenv('ALERT_TIME_WINDOW', 1800))
 

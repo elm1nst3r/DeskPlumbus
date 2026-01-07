@@ -23,6 +23,7 @@ from app.fingerprint import FingerprintMatcher, SSIDPool, DeviceFingerprint
 from app.monitor import WiFiMonitor
 from app.database import get_db
 from app.location import LocationDetector
+from app.following import FollowingDetector
 
 logger = logging.getLogger(__name__)
 
@@ -40,17 +41,20 @@ class FingerprintManager:
     """
 
     def __init__(self, wifi_monitor: Optional[WiFiMonitor] = None,
-                 location_detector: Optional[LocationDetector] = None):
+                 location_detector: Optional[LocationDetector] = None,
+                 following_detector: Optional[FollowingDetector] = None):
         """
         Initialize fingerprint manager.
 
         Args:
             wifi_monitor: WiFiMonitor instance (optional, can be set later)
             location_detector: LocationDetector instance (optional, can be set later)
+            following_detector: FollowingDetector instance (optional, can be set later)
         """
         self.matcher = FingerprintMatcher()
         self.wifi_monitor = wifi_monitor
         self.location_detector = location_detector
+        self.following_detector = following_detector
 
         # Track SSID pools being built for each MAC address
         # MAC -> Set[SSIDs]
@@ -64,6 +68,7 @@ class FingerprintManager:
         # List of recent network observations (beacons)
         self.recent_networks: list = []
         self.last_location_check = 0
+        self.last_location_id: Optional[str] = None  # Track previous location
 
         # Lock for thread safety
         self.lock = threading.Lock()
@@ -101,6 +106,16 @@ class FingerprintManager:
         """
         self.location_detector = location_detector
         logger.info("Location detector connected to FingerprintManager")
+
+    def set_following_detector(self, following_detector: FollowingDetector):
+        """
+        Set following detector.
+
+        Args:
+            following_detector: FollowingDetector instance
+        """
+        self.following_detector = following_detector
+        logger.info("Following detector connected to FingerprintManager")
 
     def load_fingerprints(self):
         """Load existing fingerprints from database."""
@@ -177,6 +192,9 @@ class FingerprintManager:
                 # Save updated fingerprint
                 self.matcher.save_fingerprint_to_database(existing)
 
+                # Phase 4: Record device observation at current location
+                self._record_device_observation(existing.fingerprint_id)
+
                 logger.debug(f"Updated existing fingerprint {existing.fingerprint_id} "
                            f"for MAC {mac_address}")
                 return
@@ -202,6 +220,9 @@ class FingerprintManager:
                 # Save updated fingerprint
                 self.matcher.save_fingerprint_to_database(fingerprint)
 
+                # Phase 4: Record device observation at current location
+                self._record_device_observation(fingerprint.fingerprint_id)
+
                 self.fingerprints_matched += 1
 
                 logger.info(f"Matched MAC {mac_address} to fingerprint {fingerprint_id} "
@@ -219,6 +240,9 @@ class FingerprintManager:
 
                 # Save to database
                 self.matcher.save_fingerprint_to_database(fingerprint)
+
+                # Phase 4: Record device observation at current location
+                self._record_device_observation(fingerprint.fingerprint_id)
 
                 self.fingerprints_created += 1
 
@@ -292,6 +316,24 @@ class FingerprintManager:
                         location = self.location_detector.locations[detected_location_id]
                         self.location_detector.save_location_to_database(location)
 
+                        # Phase 4: Check for location change and following devices
+                        if self.following_detector and detected_location_id != self.last_location_id:
+                            if self.last_location_id is not None:
+                                logger.info(f"🛸 Location changed: {self.last_location_id[:8]} → {detected_location_id[:8]}")
+
+                                # Check for following devices
+                                alerts = self.following_detector.update_location(
+                                    detected_location_id,
+                                    now
+                                )
+
+                                # Process any alerts
+                                if alerts:
+                                    self._process_following_alerts(alerts)
+
+                            # Update last location
+                            self.last_location_id = detected_location_id
+
             # Get current location if we have one
             location_id = None
             if self.location_detector and self.location_detector.current_location_id:
@@ -313,6 +355,69 @@ class FingerprintManager:
 
         except Exception as e:
             logger.error(f"Error saving network observation: {e}", exc_info=True)
+
+    def _record_device_observation(self, device_fingerprint_id: str):
+        """
+        Record device observation at current location (Phase 4).
+
+        Args:
+            device_fingerprint_id: Device fingerprint ID
+        """
+        try:
+            # Only record if we have both a following detector and current location
+            if not self.following_detector:
+                return
+
+            if not self.location_detector or not self.location_detector.current_location_id:
+                return
+
+            current_location = self.location_detector.current_location_id
+            timestamp = int(datetime.now().timestamp())
+
+            # Record the observation
+            self.following_detector.add_device_observation(
+                device_fingerprint_id,
+                current_location,
+                timestamp
+            )
+
+            logger.debug(f"Recorded device {device_fingerprint_id[:8]} at location {current_location[:8]}")
+
+        except Exception as e:
+            logger.error(f"Error recording device observation: {e}", exc_info=True)
+
+    def _process_following_alerts(self, alerts: list):
+        """
+        Process and save following detection alerts (Phase 4).
+
+        Args:
+            alerts: List of alert dictionaries from FollowingDetector
+        """
+        try:
+            for alert in alerts:
+                # Save alert to database
+                self.following_detector.save_alert(alert)
+
+                # Log the alert
+                device_id = alert['device_id']
+                score = alert['correlation_score']
+                locations = alert['locations']
+
+                logger.warning(
+                    f"🚨 FOLLOWING DEVICE DETECTED! 🚨\n"
+                    f"  Device: {device_id[:8]}\n"
+                    f"  Correlation Score: {score:.2f}\n"
+                    f"  Seen at {len(locations)} locations"
+                )
+
+                # Update device status to suspicious
+                fingerprint = self.matcher.fingerprints.get(device_id)
+                if fingerprint:
+                    fingerprint.status = 'suspicious'
+                    self.matcher.save_fingerprint_to_database(fingerprint)
+
+        except Exception as e:
+            logger.error(f"Error processing following alerts: {e}", exc_info=True)
 
     def get_device_count(self) -> int:
         """Get total number of tracked devices."""
@@ -412,20 +517,22 @@ def get_fingerprint_manager() -> FingerprintManager:
 
 
 def init_fingerprint_manager(wifi_monitor: Optional[WiFiMonitor] = None,
-                            location_detector: Optional[LocationDetector] = None) -> FingerprintManager:
+                            location_detector: Optional[LocationDetector] = None,
+                            following_detector: Optional['FollowingDetector'] = None) -> FingerprintManager:
     """
     Initialize the global FingerprintManager.
 
     Args:
         wifi_monitor: WiFiMonitor instance to connect
         location_detector: LocationDetector instance to connect (Phase 3)
+        following_detector: FollowingDetector instance to connect (Phase 4)
 
     Returns:
         FingerprintManager instance
     """
     global _fingerprint_manager_instance
 
-    _fingerprint_manager_instance = FingerprintManager(wifi_monitor, location_detector)
+    _fingerprint_manager_instance = FingerprintManager(wifi_monitor, location_detector, following_detector)
 
     # Load existing fingerprints from database
     _fingerprint_manager_instance.load_fingerprints()

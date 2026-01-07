@@ -8,11 +8,16 @@ Phase 1 Implementation:
 - System status endpoint
 - Network list endpoint
 - Simple dashboard
+
+Phase 5 Implementation:
+- Flask-SocketIO for real-time WebSocket updates
+- Background task for periodic broadcasting
 """
 
 import logging
 from datetime import datetime
 from flask import Flask, jsonify, render_template, request
+from flask_socketio import SocketIO
 from pathlib import Path
 
 import config
@@ -47,7 +52,42 @@ def create_app():
     # Register routes
     register_routes(app)
 
+    logger.info("Flask routes registered")
+
     return app
+
+
+def create_socketio_app():
+    """
+    Create Flask-SocketIO application (Phase 5).
+
+    Returns:
+        tuple: (Flask app, SocketIO instance)
+    """
+    # Create Flask app
+    app = create_app()
+
+    # Create SocketIO instance
+    socketio = SocketIO(
+        app,
+        cors_allowed_origins=config.SOCKETIO_CORS_ALLOWED_ORIGINS,
+        async_mode=config.SOCKETIO_ASYNC_MODE,
+        logger=False,
+        engineio_logger=False
+    )
+
+    # Register WebSocket events
+    from app.websocket import register_socketio_events, set_socketio_instance, start_background_updates
+
+    set_socketio_instance(socketio)
+    register_socketio_events(socketio)
+
+    # Start background update task
+    start_background_updates(socketio)
+
+    logger.info("Flask-SocketIO application created (Phase 5)")
+
+    return app, socketio
 
 
 def register_routes(app: Flask):
@@ -66,6 +106,11 @@ def register_routes(app: Flask):
     def index():
         """Render main dashboard."""
         return render_template('index.html')
+
+    @app.route('/test/websocket')
+    def test_websocket():
+        """Render WebSocket test page (Phase 5)."""
+        return render_template('test_websocket.html')
 
     # ==========================================
     # API Routes
@@ -335,6 +380,190 @@ def register_routes(app: Flask):
 
         except Exception as e:
             logger.error(f"Error getting location statistics: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    # ==================== Phase 4: Following Detection Endpoints ====================
+
+    @app.route('/api/alerts/recent')
+    def api_recent_alerts():
+        """
+        Get recent alerts (last 24 hours) (Phase 4).
+
+        Returns:
+            JSON with recent alerts
+        """
+        try:
+            db = get_db()
+            from datetime import datetime, timedelta
+
+            # Get alerts from last 24 hours
+            cutoff_time = int((datetime.now() - timedelta(hours=24)).timestamp())
+            all_alerts = db.get_all_alerts()
+
+            recent_alerts = [
+                alert for alert in all_alerts
+                if alert.get('timestamp', 0) >= cutoff_time
+            ]
+
+            return jsonify({
+                'alerts': recent_alerts,
+                'count': len(recent_alerts),
+                'time_window_hours': 24
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting recent alerts: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/following/statistics')
+    def api_following_statistics():
+        """
+        Get following detection statistics (Phase 4).
+
+        Returns:
+            JSON with following detection stats
+        """
+        try:
+            from app.following import get_following_detector
+
+            detector = get_following_detector()
+            stats = detector.get_statistics()
+
+            return jsonify(stats)
+
+        except Exception as e:
+            logger.error(f"Error getting following statistics: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/devices/<device_id>/whitelist', methods=['POST'])
+    def api_whitelist_device(device_id):
+        """
+        Add device to whitelist (Phase 4).
+
+        Args:
+            device_id: Device fingerprint ID
+
+        Returns:
+            JSON with success message
+        """
+        try:
+            from app.following import get_following_detector
+
+            detector = get_following_detector()
+            detector.add_to_whitelist(device_id)
+
+            # Also update device status in database
+            from app.fingerprint import get_fingerprint_matcher
+            matcher = get_fingerprint_matcher()
+
+            if device_id in matcher.fingerprints:
+                fingerprint = matcher.fingerprints[device_id]
+                fingerprint.status = 'known'
+                matcher.save_fingerprint_to_database(fingerprint)
+
+            return jsonify({
+                'success': True,
+                'message': f'Device {device_id[:8]} added to whitelist',
+                'device_id': device_id
+            })
+
+        except Exception as e:
+            logger.error(f"Error whitelisting device: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/devices/<device_id>/whitelist', methods=['DELETE'])
+    def api_unwhitelist_device(device_id):
+        """
+        Remove device from whitelist (Phase 4).
+
+        Args:
+            device_id: Device fingerprint ID
+
+        Returns:
+            JSON with success message
+        """
+        try:
+            from app.following import get_following_detector
+
+            detector = get_following_detector()
+            detector.remove_from_whitelist(device_id)
+
+            # Also update device status in database
+            from app.fingerprint import get_fingerprint_matcher
+            matcher = get_fingerprint_matcher()
+
+            if device_id in matcher.fingerprints:
+                fingerprint = matcher.fingerprints[device_id]
+                fingerprint.status = 'neutral'
+                matcher.save_fingerprint_to_database(fingerprint)
+
+            return jsonify({
+                'success': True,
+                'message': f'Device {device_id[:8]} removed from whitelist',
+                'device_id': device_id
+            })
+
+        except Exception as e:
+            logger.error(f"Error removing device from whitelist: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/devices/<device_id>/status', methods=['PUT'])
+    def api_update_device_status(device_id):
+        """
+        Update device status (Phase 4).
+
+        Args:
+            device_id: Device fingerprint ID
+
+        Request JSON:
+            {
+                "status": "known"|"neutral"|"suspicious"
+            }
+
+        Returns:
+            JSON with success message
+        """
+        try:
+            from flask import request
+            from app.fingerprint import get_fingerprint_matcher
+            from app.following import get_following_detector
+
+            data = request.get_json()
+            new_status = data.get('status', 'neutral')
+
+            # Validate status
+            valid_statuses = ['known', 'neutral', 'suspicious']
+            if new_status not in valid_statuses:
+                return jsonify({
+                    'error': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'
+                }), 400
+
+            # Update fingerprint status
+            matcher = get_fingerprint_matcher()
+
+            if device_id not in matcher.fingerprints:
+                return jsonify({'error': 'Device not found'}), 404
+
+            fingerprint = matcher.fingerprints[device_id]
+            fingerprint.status = new_status
+            matcher.save_fingerprint_to_database(fingerprint)
+
+            # Update whitelist if status is 'known'
+            detector = get_following_detector()
+            if new_status == 'known':
+                detector.add_to_whitelist(device_id)
+            else:
+                detector.remove_from_whitelist(device_id)
+
+            return jsonify({
+                'success': True,
+                'message': f'Device {device_id[:8]} status updated to {new_status}',
+                'device_id': device_id,
+                'status': new_status
+            })
+
+        except Exception as e:
+            logger.error(f"Error updating device status: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
     @app.route('/api/statistics')
