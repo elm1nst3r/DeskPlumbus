@@ -67,7 +67,9 @@ requests>=2.31.0
 
 # Waveshare e-Paper library for 2.13" HAT (optional hardware)
 # Install only if you have the Waveshare 2.13" e-Paper HAT
-waveshare-epd>=1.0.0
+# Note: Requires Python 3.7+ and may need manual installation
+# Install manually with: pip3 install waveshare-epd
+# waveshare-epd>=1.0.0
 
 # Image processing library for e-ink display rendering
 # Required only if using e-ink display
