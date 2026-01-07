@@ -22,6 +22,7 @@ from pathlib import Path
 
 import config
 from app.database import get_db
+from app.auth import init_auth, login_required
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,9 @@ def create_app():
         app.logger.setLevel(logging.INFO)
 
     logger.info("Flask application created")
+
+    # Initialize authentication (Phase 6)
+    init_auth(app)
 
     # Register routes
     register_routes(app)
@@ -103,11 +107,25 @@ def register_routes(app: Flask):
     # ==========================================
 
     @app.route('/')
+    @login_required
     def index():
         """Render main dashboard."""
         return render_template('index.html')
 
+    @app.route('/devices')
+    @login_required
+    def devices_page():
+        """Render device management page (Phase 6)."""
+        return render_template('devices.html')
+
+    @app.route('/locations')
+    @login_required
+    def locations_page():
+        """Render location management page (Phase 6)."""
+        return render_template('locations.html')
+
     @app.route('/test/websocket')
+    @login_required
     def test_websocket():
         """Render WebSocket test page (Phase 5)."""
         return render_template('test_websocket.html')
@@ -566,6 +584,274 @@ def register_routes(app: Flask):
             logger.error(f"Error updating device status: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
 
+    @app.route('/api/devices/<device_id>/name', methods=['PUT'])
+    def api_update_device_name(device_id):
+        """
+        Update device custom name (Phase 6).
+
+        Args:
+            device_id: Device fingerprint ID
+
+        Request JSON:
+            {
+                "name": "My iPhone"
+            }
+
+        Returns:
+            JSON with success message
+        """
+        try:
+            data = request.get_json()
+            new_name = data.get('name', '').strip()
+
+            if not new_name:
+                return jsonify({'error': 'Name cannot be empty'}), 400
+
+            if len(new_name) > 100:
+                return jsonify({'error': 'Name too long (max 100 characters)'}), 400
+
+            # Update device name in database
+            db = get_db()
+            db.update_device(device_id, custom_name=new_name)
+
+            return jsonify({
+                'success': True,
+                'message': f'Device renamed to "{new_name}"',
+                'device_id': device_id,
+                'name': new_name
+            })
+
+        except Exception as e:
+            logger.error(f"Error updating device name: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/locations/<location_id>/name', methods=['PUT'])
+    def api_update_location_name(location_id):
+        """
+        Update location custom name (Phase 6).
+
+        Args:
+            location_id: Location identifier
+
+        Request JSON:
+            {
+                "name": "Home"
+            }
+
+        Returns:
+            JSON with success message
+        """
+        try:
+            data = request.get_json()
+            new_name = data.get('name', '').strip()
+
+            if not new_name:
+                return jsonify({'error': 'Name cannot be empty'}), 400
+
+            if len(new_name) > 100:
+                return jsonify({'error': 'Name too long (max 100 characters)'}), 400
+
+            # Update location name
+            from app.location import get_location_detector
+            detector = get_location_detector()
+
+            if location_id in detector.locations:
+                location = detector.locations[location_id]
+                location.name = new_name
+                detector.save_location_to_database(location)
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Location renamed to "{new_name}"',
+                    'location_id': location_id,
+                    'name': new_name
+                })
+            else:
+                return jsonify({'error': 'Location not found'}), 404
+
+        except Exception as e:
+            logger.error(f"Error updating location name: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/alerts/<int:alert_id>/dismiss', methods=['POST'])
+    def api_dismiss_alert(alert_id):
+        """
+        Dismiss an alert.
+
+        Args:
+            alert_id: Alert ID
+
+        Returns:
+            JSON with success message
+        """
+        try:
+            db = get_db()
+
+            # Update alert status to resolved
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE alerts
+                    SET status = 'resolved',
+                        resolved_at = strftime('%s', 'now')
+                    WHERE id = ?
+                """, (alert_id,))
+
+                if cursor.rowcount == 0:
+                    return jsonify({'error': 'Alert not found'}), 404
+
+            return jsonify({
+                'success': True,
+                'message': 'Alert dismissed',
+                'alert_id': alert_id
+            })
+
+        except Exception as e:
+            logger.error(f"Error dismissing alert: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/alerts/<int:alert_id>/star', methods=['POST'])
+    def api_star_alert(alert_id):
+        """
+        Star/flag an alert for close monitoring.
+
+        Args:
+            alert_id: Alert ID
+
+        Returns:
+            JSON with success message
+        """
+        try:
+            db = get_db()
+
+            # Add a starred/priority flag to the alert
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+
+                # Check if alert exists
+                cursor.execute("SELECT status FROM alerts WHERE id = ?", (alert_id,))
+                result = cursor.fetchone()
+
+                if not result:
+                    return jsonify({'error': 'Alert not found'}), 404
+
+                # Update severity to high (indicating starred/priority)
+                cursor.execute("""
+                    UPDATE alerts
+                    SET severity = 'high'
+                    WHERE id = ?
+                """, (alert_id,))
+
+            return jsonify({
+                'success': True,
+                'message': 'Alert starred for monitoring',
+                'alert_id': alert_id
+            })
+
+        except Exception as e:
+            logger.error(f"Error starring alert: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/devices/<device_id>/history')
+    def api_device_history(device_id):
+        """
+        Get detailed history of when and where a device was seen.
+
+        Args:
+            device_id: Device fingerprint ID
+
+        Returns:
+            JSON with device history
+        """
+        try:
+            db = get_db()
+
+            # Get device info
+            device = db.get_device(device_id)
+            if not device:
+                return jsonify({'error': 'Device not found'}), 404
+
+            # Get probe requests for this device
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+
+                # Get probe request history
+                cursor.execute("""
+                    SELECT
+                        mac_address,
+                        ssid,
+                        frequency_band,
+                        timestamp
+                    FROM probe_requests
+                    WHERE device_fingerprint_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT 1000
+                """, (device_id,))
+
+                probes = []
+                for row in cursor.fetchall():
+                    probes.append({
+                        'mac_address': row[0],
+                        'ssid': row[1],
+                        'frequency_band': row[2],
+                        'timestamp': row[3]
+                    })
+
+                # Get alerts for this device
+                cursor.execute("""
+                    SELECT
+                        id,
+                        alert_type,
+                        severity,
+                        message,
+                        status,
+                        created_at,
+                        resolved_at
+                    FROM alerts
+                    WHERE device_fingerprint_id = ?
+                    ORDER BY created_at DESC
+                """, (device_id,))
+
+                alerts = []
+                for row in cursor.fetchall():
+                    alerts.append({
+                        'id': row[0],
+                        'alert_type': row[1],
+                        'severity': row[2],
+                        'message': row[3],
+                        'status': row[4],
+                        'created_at': row[5],
+                        'resolved_at': row[6]
+                    })
+
+            # Get location sightings
+            from app.following import get_following_detector
+            detector = get_following_detector()
+
+            location_sightings = []
+            if device_id in detector.device_locations:
+                for loc_id, timestamps in detector.device_locations[device_id].items():
+                    location_sightings.append({
+                        'location_id': loc_id,
+                        'visit_count': len(timestamps),
+                        'first_seen': min(timestamps),
+                        'last_seen': max(timestamps),
+                        'timestamps': sorted(timestamps, reverse=True)[:10]  # Last 10 visits
+                    })
+
+            return jsonify({
+                'device': device,
+                'probe_history': probes[:100],  # Last 100 probes
+                'location_sightings': location_sightings,
+                'alerts': alerts,
+                'total_probes': len(probes),
+                'total_locations': len(location_sightings)
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting device history: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
     @app.route('/api/statistics')
     def api_statistics():
         """
@@ -617,6 +903,515 @@ def register_routes(app: Flask):
         except Exception as e:
             logger.error(f"Error getting statistics: {e}", exc_info=True)
             return jsonify({'error': str(e)}), 500
+
+    # ==========================================
+    # Settings Page
+    # ==========================================
+
+    @app.route('/settings')
+    @login_required
+    def settings_page():
+        """Render settings page."""
+        return render_template('settings.html')
+
+    # ==========================================
+    # Export Data Endpoints
+    # ==========================================
+
+    @app.route('/api/export/devices')
+    @login_required
+    def api_export_devices():
+        """Export devices data as CSV."""
+        try:
+            import csv
+            import io
+            from flask import make_response
+
+            db = get_db()
+            devices = db.get_all_devices()
+
+            # Create CSV in memory
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Write header
+            writer.writerow(['Fingerprint ID', 'Custom Name', 'Status', 'SSID Count', 'MAC Addresses', 'First Seen', 'Last Seen', 'Detection Count'])
+
+            # Write data
+            for device in devices:
+                writer.writerow([
+                    device['fingerprint_id'],
+                    device.get('custom_name') or 'Unknown Device',
+                    device['status'],
+                    device['ssid_count'],
+                    device['mac_count'],
+                    datetime.fromtimestamp(device['first_seen']).strftime('%Y-%m-%d %H:%M:%S') if device.get('first_seen') else '',
+                    datetime.fromtimestamp(device['last_seen']).strftime('%Y-%m-%d %H:%M:%S') if device.get('last_seen') else '',
+                    device['detection_count']
+                ])
+
+            # Create response
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = f'attachment; filename="plumbus_devices_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error exporting devices: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/export/locations')
+    @login_required
+    def api_export_locations():
+        """Export locations data as CSV."""
+        try:
+            import csv
+            import io
+            from flask import make_response
+
+            db = get_db()
+            locations = db.get_all_locations()
+
+            # Create CSV in memory
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Write header
+            writer.writerow(['Location ID', 'Name', 'BSSID Count', 'First Detected', 'Last Detected', 'Detection Count'])
+
+            # Write data
+            for location in locations:
+                writer.writerow([
+                    location['location_id'],
+                    location['name'],
+                    location['bssid_count'],
+                    datetime.fromtimestamp(location['first_detected']).strftime('%Y-%m-%d %H:%M:%S'),
+                    datetime.fromtimestamp(location['last_detected']).strftime('%Y-%m-%d %H:%M:%S'),
+                    location['detection_count']
+                ])
+
+            # Create response
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = f'attachment; filename="plumbus_locations_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error exporting locations: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/export/probes')
+    @login_required
+    def api_export_probes():
+        """Export probe requests data as CSV."""
+        try:
+            import csv
+            import io
+            from flask import make_response
+
+            db = get_db()
+
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT mac_address, ssid, timestamp, fingerprint_id
+                    FROM probe_requests
+                    ORDER BY timestamp DESC
+                    LIMIT 10000
+                """)
+                probes = cursor.fetchall()
+
+            # Create CSV in memory
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Write header
+            writer.writerow(['MAC Address', 'SSID', 'Timestamp', 'Device ID'])
+
+            # Write data
+            for probe in probes:
+                writer.writerow([
+                    probe[0],
+                    probe[1] or '(broadcast)',
+                    datetime.fromtimestamp(probe[2]).strftime('%Y-%m-%d %H:%M:%S'),
+                    probe[3] or 'Unidentified'
+                ])
+
+            # Create response
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = f'attachment; filename="plumbus_probes_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error exporting probes: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/export/networks')
+    @login_required
+    def api_export_networks():
+        """Export network observations data as CSV."""
+        try:
+            import csv
+            import io
+            from flask import make_response
+
+            db = get_db()
+
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT bssid, ssid, frequency_band, timestamp, location_id
+                    FROM network_observations
+                    ORDER BY timestamp DESC
+                    LIMIT 10000
+                """)
+                networks = cursor.fetchall()
+
+            # Create CSV in memory
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Write header
+            writer.writerow(['BSSID', 'SSID', 'Frequency Band', 'Timestamp', 'Location ID'])
+
+            # Write data
+            for network in networks:
+                writer.writerow([
+                    network[0],
+                    network[1] or '(hidden)',
+                    network[2] or '2.4GHz',
+                    datetime.fromtimestamp(network[3]).strftime('%Y-%m-%d %H:%M:%S'),
+                    network[4] or 'Unknown'
+                ])
+
+            # Create response
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = f'attachment; filename="plumbus_networks_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error exporting networks: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/export/alerts')
+    @login_required
+    def api_export_alerts():
+        """Export alerts data as CSV."""
+        try:
+            import csv
+            import io
+            from flask import make_response
+
+            db = get_db()
+
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT alert_type, device_id, message, severity, status, timestamp, resolved_at
+                    FROM alerts
+                    ORDER BY timestamp DESC
+                """)
+                alerts = cursor.fetchall()
+
+            # Create CSV in memory
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Write header
+            writer.writerow(['Alert Type', 'Device ID', 'Message', 'Severity', 'Status', 'Timestamp', 'Resolved At'])
+
+            # Write data
+            for alert in alerts:
+                writer.writerow([
+                    alert[0],
+                    alert[1] or 'Unknown',
+                    alert[2],
+                    alert[3],
+                    alert[4],
+                    datetime.fromtimestamp(alert[5]).strftime('%Y-%m-%d %H:%M:%S'),
+                    datetime.fromtimestamp(alert[6]).strftime('%Y-%m-%d %H:%M:%S') if alert[6] else ''
+                ])
+
+            # Create response
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = f'attachment; filename="plumbus_alerts_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error exporting alerts: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/export/all')
+    @login_required
+    def api_export_all():
+        """Export all data as a ZIP file containing multiple CSVs."""
+        try:
+            import csv
+            import io
+            import zipfile
+            from flask import make_response
+
+            db = get_db()
+
+            # Create ZIP file in memory
+            zip_buffer = io.BytesIO()
+
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                # Export devices
+                devices = db.get_all_devices()
+                devices_csv = io.StringIO()
+                writer = csv.writer(devices_csv)
+                writer.writerow(['Fingerprint ID', 'Custom Name', 'Status', 'SSID Count', 'MAC Addresses', 'First Seen', 'Last Seen', 'Detection Count'])
+                for device in devices:
+                    writer.writerow([
+                        device['fingerprint_id'],
+                        device.get('custom_name') or 'Unknown Device',
+                        device['status'],
+                        device['ssid_count'],
+                        device['mac_count'],
+                        datetime.fromtimestamp(device['first_seen']).strftime('%Y-%m-%d %H:%M:%S') if device.get('first_seen') else '',
+                        datetime.fromtimestamp(device['last_seen']).strftime('%Y-%m-%d %H:%M:%S') if device.get('last_seen') else '',
+                        device['detection_count']
+                    ])
+                zip_file.writestr('devices.csv', devices_csv.getvalue())
+
+                # Export locations
+                locations = db.get_all_locations()
+                locations_csv = io.StringIO()
+                writer = csv.writer(locations_csv)
+                writer.writerow(['Location ID', 'Name', 'BSSID Count', 'First Detected', 'Last Detected', 'Detection Count'])
+                for location in locations:
+                    writer.writerow([
+                        location['location_id'],
+                        location['name'],
+                        location['bssid_count'],
+                        datetime.fromtimestamp(location['first_detected']).strftime('%Y-%m-%d %H:%M:%S'),
+                        datetime.fromtimestamp(location['last_detected']).strftime('%Y-%m-%d %H:%M:%S'),
+                        location['detection_count']
+                    ])
+                zip_file.writestr('locations.csv', locations_csv.getvalue())
+
+                # Export probes (limit to last 10000)
+                with db.get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT mac_address, ssid, timestamp, fingerprint_id
+                        FROM probe_requests
+                        ORDER BY timestamp DESC
+                        LIMIT 10000
+                    """)
+                    probes = cursor.fetchall()
+
+                probes_csv = io.StringIO()
+                writer = csv.writer(probes_csv)
+                writer.writerow(['MAC Address', 'SSID', 'Timestamp', 'Device ID'])
+                for probe in probes:
+                    writer.writerow([
+                        probe[0],
+                        probe[1] or '(broadcast)',
+                        datetime.fromtimestamp(probe[2]).strftime('%Y-%m-%d %H:%M:%S'),
+                        probe[3] or 'Unidentified'
+                    ])
+                zip_file.writestr('probes.csv', probes_csv.getvalue())
+
+                # Export networks (limit to last 10000)
+                with db.get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT bssid, ssid, frequency_band, timestamp, location_id
+                        FROM network_observations
+                        ORDER BY timestamp DESC
+                        LIMIT 10000
+                    """)
+                    networks = cursor.fetchall()
+
+                networks_csv = io.StringIO()
+                writer = csv.writer(networks_csv)
+                writer.writerow(['BSSID', 'SSID', 'Frequency Band', 'Timestamp', 'Location ID'])
+                for network in networks:
+                    writer.writerow([
+                        network[0],
+                        network[1] or '(hidden)',
+                        network[2] or '2.4GHz',
+                        datetime.fromtimestamp(network[3]).strftime('%Y-%m-%d %H:%M:%S'),
+                        network[4] or 'Unknown'
+                    ])
+                zip_file.writestr('networks.csv', networks_csv.getvalue())
+
+                # Export alerts
+                with db.get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT alert_type, device_id, message, severity, status, timestamp, resolved_at
+                        FROM alerts
+                        ORDER BY timestamp DESC
+                    """)
+                    alerts = cursor.fetchall()
+
+                alerts_csv = io.StringIO()
+                writer = csv.writer(alerts_csv)
+                writer.writerow(['Alert Type', 'Device ID', 'Message', 'Severity', 'Status', 'Timestamp', 'Resolved At'])
+                for alert in alerts:
+                    writer.writerow([
+                        alert[0],
+                        alert[1] or 'Unknown',
+                        alert[2],
+                        alert[3],
+                        alert[4],
+                        datetime.fromtimestamp(alert[5]).strftime('%Y-%m-%d %H:%M:%S'),
+                        datetime.fromtimestamp(alert[6]).strftime('%Y-%m-%d %H:%M:%S') if alert[6] else ''
+                    ])
+                zip_file.writestr('alerts.csv', alerts_csv.getvalue())
+
+            # Create response
+            zip_buffer.seek(0)
+            response = make_response(zip_buffer.getvalue())
+            response.headers['Content-Type'] = 'application/zip'
+            response.headers['Content-Disposition'] = f'attachment; filename="plumbus_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip"'
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error exporting all data: {e}", exc_info=True)
+            return jsonify({'error': str(e)}), 500
+
+    # ==========================================
+    # Version Management Endpoints
+    # ==========================================
+
+    @app.route('/api/version/check')
+    @login_required
+    def api_version_check():
+        """Check for updates from GitHub."""
+        try:
+            import requests
+            import re
+
+            # Get current version
+            current_version = config.APP_VERSION
+
+            # Fetch latest release from GitHub
+            github_api = "https://api.github.com/repos/elm1nst3r/DeskPlumbus/releases/latest"
+            headers = {'Accept': 'application/vnd.github.v3+json'}
+
+            response = requests.get(github_api, headers=headers, timeout=10)
+            response.raise_for_status()
+
+            latest_release = response.json()
+            latest_version = latest_release['tag_name'].lstrip('v')
+
+            # Compare versions
+            def version_tuple(v):
+                return tuple(map(int, (v.split('.'))))
+
+            current_tuple = version_tuple(current_version)
+            latest_tuple = version_tuple(latest_version)
+
+            update_available = latest_tuple > current_tuple
+
+            # Get changelog
+            changelog = latest_release.get('body', 'No changelog available')
+
+            return jsonify({
+                'success': True,
+                'current_version': current_version,
+                'latest_version': latest_version,
+                'update_available': update_available,
+                'changelog': changelog,
+                'release_url': latest_release.get('html_url'),
+                'published_at': latest_release.get('published_at')
+            })
+
+        except requests.RequestException as e:
+            logger.error(f"Error checking for updates: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': 'Unable to connect to GitHub. Please check your internet connection.'
+            }), 503
+
+        except Exception as e:
+            logger.error(f"Error in version check: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @app.route('/api/version/update', methods=['POST'])
+    @login_required
+    def api_version_update():
+        """Perform update from GitHub."""
+        try:
+            import subprocess
+            import os
+
+            # Get project directory
+            project_dir = config.BASE_DIR
+
+            # Check if we're in a git repository
+            git_check = subprocess.run(
+                ['git', 'rev-parse', '--is-inside-work-tree'],
+                cwd=project_dir,
+                capture_output=True,
+                text=True
+            )
+
+            if git_check.returncode != 0:
+                return jsonify({
+                    'success': False,
+                    'message': 'Not a git repository. Please update manually.'
+                }), 400
+
+            # Pull latest changes
+            logger.info("Pulling latest changes from GitHub...")
+            pull_result = subprocess.run(
+                ['git', 'pull', 'origin', 'main'],
+                cwd=project_dir,
+                capture_output=True,
+                text=True
+            )
+
+            if pull_result.returncode != 0:
+                return jsonify({
+                    'success': False,
+                    'message': f'Git pull failed: {pull_result.stderr}'
+                }), 500
+
+            # Install/update dependencies
+            logger.info("Installing dependencies...")
+            pip_result = subprocess.run(
+                ['pip3', 'install', '-r', 'requirements.txt'],
+                cwd=project_dir,
+                capture_output=True,
+                text=True
+            )
+
+            if pip_result.returncode != 0:
+                logger.warning(f"Dependency installation had warnings: {pip_result.stderr}")
+
+            # Schedule restart (the systemd service will auto-restart)
+            logger.info("Update successful! Scheduling restart...")
+
+            # Return success - the client will reload after 5 seconds
+            return jsonify({
+                'success': True,
+                'message': 'Update successful! Restarting application...',
+                'output': pull_result.stdout
+            })
+
+        except Exception as e:
+            logger.error(f"Error performing update: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
 
     # ==========================================
     # Health Check

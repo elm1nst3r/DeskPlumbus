@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Management - WiFi Desk Plumbus</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            background: white;
+            border-radius: 10px;
+            padding: 15px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .navbar-menu {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .navbar-link {
+            color: #666;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .navbar-link:hover {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+
+        .navbar-link.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        /* Device Table */
+        .device-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .device-table th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .device-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .device-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .device-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .device-id {
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .status-known {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-neutral {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-suspicious {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.85em;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .ssid-list {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .ssid-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 3px;
+            border-left: 3px solid #667eea;
+            font-family: monospace;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .device-table {
+                font-size: 0.9em;
+            }
+
+            .device-table th,
+            .device-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Bar -->
+        <div class="navbar">
+            <div class="navbar-brand">🛸 WiFi Desk Plumbus</div>
+            <div class="navbar-menu">
+                <a href="/" class="navbar-link">Dashboard</a>
+                <a href="/devices" class="navbar-link active">Devices</a>
+                <a href="/locations" class="navbar-link">Locations</a>
+                <a href="/settings" class="navbar-link">Settings</a>
+                <a href="/logout" class="navbar-link">Logout</a>
+            </div>
+        </div>
+
+        <!-- Device Management Card -->
+        <div class="card">
+            <h2>Device Management</h2>
+
+            <div id="devicesLoading" class="loading">Loading devices...</div>
+
+            <div id="devicesContent" style="display: none;">
+                <table class="device-table">
+                    <thead>
+                        <tr>
+                            <th>Device Name</th>
+                            <th>Fingerprint ID</th>
+                            <th>Status</th>
+                            <th>SSID Pool</th>
+                            <th>First Seen</th>
+                            <th>Last Seen</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="devicesTableBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="emptyState" style="display: none;" class="empty-state">
+                <div class="empty-state-icon">📱</div>
+                <h3>No Devices Found</h3>
+                <p>No device fingerprints have been captured yet.</p>
+                <p>Devices will appear here once probe requests are detected.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Device Modal -->
+    <div id="renameModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Rename Device</h3>
+                <p class="device-id" id="renameDeviceId">-</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="deviceName">Custom Name</label>
+                    <input type="text" id="deviceName" placeholder="e.g., My iPhone" maxlength="100">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRenameModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveDeviceName()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View SSID Pool Modal -->
+    <div id="ssidModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="ssidModalTitle">SSID Pool</h3>
+                <p class="device-id" id="ssidDeviceId">-</p>
+            </div>
+            <div class="modal-body">
+                <div class="ssid-list" id="ssidList">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeSsidModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Status Modal -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Change Device Status</h3>
+                <p class="device-id" id="statusDeviceId">-</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="deviceStatus">Status</label>
+                    <select id="deviceStatus">
+                        <option value="known">Known (Whitelisted)</option>
+                        <option value="neutral">Neutral</option>
+                        <option value="suspicious">Suspicious</option>
+                    </select>
+                </div>
+                <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                    <strong>Known:</strong> Device is whitelisted and won't trigger following alerts<br>
+                    <strong>Neutral:</strong> Default status for new devices<br>
+                    <strong>Suspicious:</strong> Mark device as potentially following you
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeStatusModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveDeviceStatus()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let devices = [];
+        let currentDeviceId = null;
+
+        // Load devices on page load
+        async function loadDevices() {
+            try {
+                const response = await fetch('/api/fingerprints');
+                const data = await response.json();
+
+                devices = data.fingerprints || [];
+
+                if (devices.length === 0) {
+                    document.getElementById('devicesLoading').style.display = 'none';
+                    document.getElementById('emptyState').style.display = 'block';
+                    return;
+                }
+
+                displayDevices();
+
+                document.getElementById('devicesLoading').style.display = 'none';
+                document.getElementById('devicesContent').style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading devices:', error);
+                document.getElementById('devicesLoading').innerHTML = `
+                    <div style="color: #c33;">Error loading devices: ${error.message}</div>
+                `;
+            }
+        }
+
+        function displayDevices() {
+            const tbody = document.getElementById('devicesTableBody');
+            tbody.innerHTML = '';
+
+            devices.forEach(device => {
+                const row = document.createElement('tr');
+
+                const firstSeen = new Date(device.first_seen * 1000).toLocaleString();
+                const lastSeen = new Date(device.last_seen * 1000).toLocaleString();
+                const deviceName = device.custom_name || 'Unnamed Device';
+                const ssidCount = device.ssid_pool ? device.ssid_pool.length : 0;
+
+                row.innerHTML = `
+                    <td>
+                        <div class="device-name">${deviceName}</div>
+                    </td>
+                    <td>
+                        <div class="device-id">${device.fingerprint_id.substring(0, 12)}...</div>
+                    </td>
+                    <td>
+                        <span class="status-badge status-${device.status}">
+                            ${device.status.toUpperCase()}
+                        </span>
+                    </td>
+                    <td>${ssidCount} SSIDs</td>
+                    <td>${firstSeen}</td>
+                    <td>${lastSeen}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="openRenameModal('${device.fingerprint_id}', '${deviceName}')">
+                            Rename
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="viewSsidPool('${device.fingerprint_id}', '${deviceName}')">
+                            SSIDs
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="openStatusModal('${device.fingerprint_id}', '${device.status}')">
+                            Status
+                        </button>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+        }
+
+        // Rename Modal Functions
+        function openRenameModal(deviceId, currentName) {
+            currentDeviceId = deviceId;
+            document.getElementById('renameDeviceId').textContent = deviceId.substring(0, 16) + '...';
+            document.getElementById('deviceName').value = currentName === 'Unnamed Device' ? '' : currentName;
+            document.getElementById('renameModal').classList.add('active');
+        }
+
+        function closeRenameModal() {
+            document.getElementById('renameModal').classList.remove('active');
+            currentDeviceId = null;
+        }
+
+        async function saveDeviceName() {
+            const newName = document.getElementById('deviceName').value.trim();
+
+            if (!newName) {
+                alert('Please enter a device name');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/devices/${currentDeviceId}/name`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Device renamed to "${newName}"`);
+                    closeRenameModal();
+                    loadDevices(); // Reload to show updated name
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error saving name: ' + error.message);
+            }
+        }
+
+        // SSID Pool Modal Functions
+        function viewSsidPool(deviceId, deviceName) {
+            const device = devices.find(d => d.fingerprint_id === deviceId);
+
+            if (!device || !device.ssid_pool || device.ssid_pool.length === 0) {
+                alert('No SSID pool data available for this device');
+                return;
+            }
+
+            document.getElementById('ssidModalTitle').textContent = `SSID Pool: ${deviceName}`;
+            document.getElementById('ssidDeviceId').textContent = deviceId.substring(0, 16) + '...';
+
+            const ssidList = document.getElementById('ssidList');
+            ssidList.innerHTML = '';
+
+            device.ssid_pool.forEach(ssid => {
+                const ssidItem = document.createElement('div');
+                ssidItem.className = 'ssid-item';
+                ssidItem.textContent = ssid;
+                ssidList.appendChild(ssidItem);
+            });
+
+            document.getElementById('ssidModal').classList.add('active');
+        }
+
+        function closeSsidModal() {
+            document.getElementById('ssidModal').classList.remove('active');
+        }
+
+        // Status Modal Functions
+        function openStatusModal(deviceId, currentStatus) {
+            currentDeviceId = deviceId;
+            document.getElementById('statusDeviceId').textContent = deviceId.substring(0, 16) + '...';
+            document.getElementById('deviceStatus').value = currentStatus;
+            document.getElementById('statusModal').classList.add('active');
+        }
+
+        function closeStatusModal() {
+            document.getElementById('statusModal').classList.remove('active');
+            currentDeviceId = null;
+        }
+
+        async function saveDeviceStatus() {
+            const newStatus = document.getElementById('deviceStatus').value;
+
+            try {
+                const response = await fetch(`/api/devices/${currentDeviceId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Device status updated to ${newStatus}`);
+                    closeStatusModal();
+                    loadDevices(); // Reload to show updated status
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error saving status: ' + error.message);
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        };
+
+        // Load devices on page load
+        window.addEventListener('DOMContentLoaded', loadDevices);
+    </script>
+</body>
+</html>

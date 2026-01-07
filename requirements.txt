@@ -55,6 +55,13 @@ python-dotenv>=1.0.0
 psutil>=5.9.0
 
 # ===========================
+# HTTP Requests
+# ===========================
+
+# HTTP library for GitHub API calls
+requests>=2.31.0
+
+# ===========================
 # Database (built-in to Python)
 # ===========================
 

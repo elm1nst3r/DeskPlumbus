@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Management - WiFi Desk Plumbus</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            background: white;
+            border-radius: 10px;
+            padding: 15px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .navbar-menu {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .navbar-link {
+            color: #666;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .navbar-link:hover {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+
+        .navbar-link.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        /* Location Grid */
+        .location-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .location-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+
+        .location-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .location-card.current {
+            border-left-color: #34a853;
+            background: #e8f5e9;
+        }
+
+        .location-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .location-name {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .current-badge {
+            background: #34a853;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .location-id {
+            font-family: monospace;
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .location-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .stat-item {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .location-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s;
+            flex: 1;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .bssid-list {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .bssid-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 3px;
+            border-left: 3px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bssid-mac {
+            font-family: monospace;
+            font-weight: 600;
+        }
+
+        .bssid-ssid {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .location-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .navbar-menu {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Bar -->
+        <div class="navbar">
+            <div class="navbar-brand">🛸 WiFi Desk Plumbus</div>
+            <div class="navbar-menu">
+                <a href="/" class="navbar-link">Dashboard</a>
+                <a href="/devices" class="navbar-link">Devices</a>
+                <a href="/locations" class="navbar-link">Locations</a>
+                <a href="/settings" class="navbar-link">Settings</a>
+                <a href="/logout" class="navbar-link">Logout</a>
+            </div>
+        </div>
+
+        <!-- Location Management Card -->
+        <div class="card">
+            <h2>Location Management</h2>
+
+            <div id="locationsLoading" class="loading">Loading locations...</div>
+
+            <div id="locationsContent" style="display: none;">
+                <div class="location-grid" id="locationGrid">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
+            <div id="emptyState" style="display: none;" class="empty-state">
+                <div class="empty-state-icon">📍</div>
+                <h3>No Locations Found</h3>
+                <p>No location fingerprints have been created yet.</p>
+                <p>Locations are automatically detected based on visible WiFi networks.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Location Modal -->
+    <div id="renameModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Rename Location</h3>
+                <p class="location-id" id="renameLocationId">-</p>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="locationName">Custom Name</label>
+                    <input type="text" id="locationName" placeholder="e.g., Home, Office, Café" maxlength="100">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRenameModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveLocationName()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View BSSIDs Modal -->
+    <div id="bssidModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="bssidModalTitle">Network Fingerprint</h3>
+                <p class="location-id" id="bssidLocationId">-</p>
+            </div>
+            <div class="modal-body">
+                <p style="color: #666; margin-bottom: 15px;">
+                    These are the WiFi networks (BSSIDs) that identify this location:
+                </p>
+                <div class="bssid-list" id="bssidList">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeBssidModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let locations = [];
+        let currentLocationId = null;
+
+        // Load locations on page load
+        async function loadLocations() {
+            try {
+                const response = await fetch('/api/locations');
+                const data = await response.json();
+
+                locations = data.locations || [];
+
+                if (locations.length === 0) {
+                    document.getElementById('locationsLoading').style.display = 'none';
+                    document.getElementById('emptyState').style.display = 'block';
+                    return;
+                }
+
+                displayLocations();
+
+                document.getElementById('locationsLoading').style.display = 'none';
+                document.getElementById('locationsContent').style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading locations:', error);
+                document.getElementById('locationsLoading').innerHTML = `
+                    <div style="color: #c33;">Error loading locations: ${error.message}</div>
+                `;
+            }
+        }
+
+        function displayLocations() {
+            const grid = document.getElementById('locationGrid');
+            grid.innerHTML = '';
+
+            locations.forEach(location => {
+                const card = document.createElement('div');
+                card.className = 'location-card' + (location.is_current ? ' current' : '');
+
+                const firstDetected = new Date(location.first_detected * 1000).toLocaleString();
+                const lastDetected = new Date(location.last_detected * 1000).toLocaleString();
+
+                card.innerHTML = `
+                    <div class="location-header">
+                        <div class="location-name">${location.name}</div>
+                        ${location.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
+                    </div>
+                    <div class="location-id">${location.location_id.substring(0, 16)}...</div>
+                    <div class="location-stats">
+                        <div class="stat-item">
+                            <div>Networks:</div>
+                            <div class="stat-value">${location.bssid_count} BSSIDs</div>
+                        </div>
+                        <div class="stat-item">
+                            <div>Visits:</div>
+                            <div class="stat-value">${location.detection_count}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div>First seen:</div>
+                            <div class="stat-value">${firstDetected}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div>Last seen:</div>
+                            <div class="stat-value">${lastDetected}</div>
+                        </div>
+                    </div>
+                    <div class="location-actions">
+                        <button class="btn btn-primary" onclick="openRenameModal('${location.location_id}', '${location.name}')">
+                            Rename
+                        </button>
+                        <button class="btn btn-secondary" onclick="viewBssids('${location.location_id}', '${location.name}')">
+                            View Networks
+                        </button>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // Rename Modal Functions
+        function openRenameModal(locationId, currentName) {
+            currentLocationId = locationId;
+            document.getElementById('renameLocationId').textContent = locationId.substring(0, 16) + '...';
+            document.getElementById('locationName').value = currentName;
+            document.getElementById('renameModal').classList.add('active');
+        }
+
+        function closeRenameModal() {
+            document.getElementById('renameModal').classList.remove('active');
+            currentLocationId = null;
+        }
+
+        async function saveLocationName() {
+            const newName = document.getElementById('locationName').value.trim();
+
+            if (!newName) {
+                alert('Please enter a location name');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/locations/${currentLocationId}/name`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Location renamed to "${newName}"`);
+                    closeRenameModal();
+                    loadLocations(); // Reload to show updated name
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error saving name: ' + error.message);
+            }
+        }
+
+        // BSSID Modal Functions
+        async function viewBssids(locationId, locationName) {
+            try {
+                // Fetch network observations for this location
+                const response = await fetch(`/api/networks/recent?minutes=10080`); // Last week
+                const data = await response.json();
+
+                // Filter networks for this location
+                const locationNetworks = data.networks.filter(n => n.location_id === locationId);
+
+                if (locationNetworks.length === 0) {
+                    alert('No network data available for this location');
+                    return;
+                }
+
+                // Group by BSSID to get unique networks
+                const uniqueNetworks = {};
+                locationNetworks.forEach(network => {
+                    if (!uniqueNetworks[network.bssid]) {
+                        uniqueNetworks[network.bssid] = network;
+                    }
+                });
+
+                document.getElementById('bssidModalTitle').textContent = `Network Fingerprint: ${locationName}`;
+                document.getElementById('bssidLocationId').textContent = locationId.substring(0, 16) + '...';
+
+                const bssidList = document.getElementById('bssidList');
+                bssidList.innerHTML = '';
+
+                Object.values(uniqueNetworks).forEach(network => {
+                    const bssidItem = document.createElement('div');
+                    bssidItem.className = 'bssid-item';
+                    bssidItem.innerHTML = `
+                        <div>
+                            <div class="bssid-mac">${network.bssid}</div>
+                            <div class="bssid-ssid">${network.ssid || '(Hidden)'}</div>
+                        </div>
+                        <div style="color: #999; font-size: 0.9em;">
+                            ${network.frequency_band || '2.4GHz'}
+                        </div>
+                    `;
+                    bssidList.appendChild(bssidItem);
+                });
+
+                document.getElementById('bssidModal').classList.add('active');
+
+            } catch (error) {
+                alert('Error loading network data: ' + error.message);
+            }
+        }
+
+        function closeBssidModal() {
+            document.getElementById('bssidModal').classList.remove('active');
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        };
+
+        // Load locations on page load
+        window.addEventListener('DOMContentLoaded', loadLocations);
+    </script>
+</body>
+</html>

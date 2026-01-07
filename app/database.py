@@ -181,8 +181,76 @@ class PlumbusDatabase:
                 ON alerts(status)
             """)
 
+            # Phase 6: Additional performance indexes
+
+            # Devices - composite index for status + last_seen queries
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_devices_status_lastseen
+                ON devices(status, last_seen DESC)
+            """)
+
+            # Devices - index on last_seen for time-based queries
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_devices_lastseen
+                ON devices(last_seen DESC)
+            """)
+
+            # Locations - index on last_seen for recent locations
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_locations_lastseen
+                ON locations(last_seen DESC)
+            """)
+
+            # Network observations - index on BSSID for lookups
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_network_obs_bssid
+                ON network_observations(bssid)
+            """)
+
+            # Network observations - composite index for location + timestamp queries
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_network_obs_location_time
+                ON network_observations(location_id, timestamp DESC)
+            """)
+
+            # Network observations - composite index for BSSID + timestamp
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_network_obs_bssid_time
+                ON network_observations(bssid, timestamp DESC)
+            """)
+
+            # Probe requests - index on device fingerprint for device history
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_probe_requests_device
+                ON probe_requests(device_fingerprint_id)
+            """)
+
+            # Probe requests - composite index for MAC + timestamp
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_probe_requests_mac_time
+                ON probe_requests(mac_address, timestamp DESC)
+            """)
+
+            # Alerts - index on device for device alert history
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_alerts_device
+                ON alerts(device_fingerprint_id)
+            """)
+
+            # Alerts - composite index for status + created_at
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_alerts_status_created
+                ON alerts(status, created_at DESC)
+            """)
+
+            # Alerts - index on alert_type for filtering by type
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_alerts_type
+                ON alerts(alert_type)
+            """)
+
             conn.commit()
-            logger.info("Database schema initialized successfully")
+            logger.info("Database schema initialized successfully with performance indexes")
 
     # ==========================================
     # Device Operations

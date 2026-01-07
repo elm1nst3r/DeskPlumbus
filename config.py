@@ -166,6 +166,9 @@ AUTO_CLEANUP = True
 # Flask secret key (change in production!)
 SECRET_KEY = os.getenv('SECRET_KEY', 'plumbus-secret-key-change-me')
 
+# Web interface password (Phase 6 authentication)
+WEB_PASSWORD = os.getenv('WEB_PASSWORD', 'plumbus123')
+
 # Flask debug mode (disable in production)
 DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 
@@ -192,20 +195,23 @@ SOCKETIO_ASYNC_MODE = 'eventlet'
 SOCKETIO_MESSAGE_QUEUE = None
 
 # CORS settings for WebSocket
-SOCKETIO_CORS_ALLOWED_ORIGINS = '*'
+SOCKETIO_CORS_ALLOWED_ORIGINS = os.getenv('SOCKETIO_CORS_ALLOWED_ORIGINS', '*')
 
 # ===========================
-# Logging Settings
+# Logging Settings (Phase 6)
 # ===========================
-
-# Log file path
-LOG_FILE = LOGS_DIR / 'plumbus.log'
 
 # Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 
-# Log format
-LOG_FORMAT = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+# Log file path
+LOG_FILE = os.getenv('LOG_FILE', str(LOGS_DIR / 'plumbus.log'))
+
+# Maximum log file size in MB
+LOG_MAX_SIZE_MB = int(os.getenv('LOG_MAX_SIZE_MB', 10))
+
+# Number of backup log files to keep
+LOG_BACKUP_COUNT = int(os.getenv('LOG_BACKUP_COUNT', 5))
 
 # Log date format
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'

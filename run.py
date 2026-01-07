@@ -27,16 +27,18 @@ except ImportError as e:
     print(f"ERROR: Could not import config: {e}")
     sys.exit(1)
 
-# Setup logging
-logging.basicConfig(
-    level=getattr(logging, config.LOG_LEVEL),
-    format=config.LOG_FORMAT,
-    datefmt=config.LOG_DATE_FORMAT,
-    handlers=[
-        logging.FileHandler(config.LOG_FILE),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+# Setup logging with rotation (Phase 6)
+try:
+    from app.logging_config import setup_logging
+    setup_logging()
+except Exception as e:
+    print(f"WARNING: Could not setup advanced logging: {e}")
+    # Fallback to basic logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
 
 logger = logging.getLogger(__name__)
 

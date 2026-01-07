@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WiFi Desk Plumbus - Phase 5 Real-time Analytics</title>
+    <title>WiFi Desk Plumbus - Live Dashboard</title>
     <!-- Socket.IO for real-time WebSocket updates -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <!-- Chart.js for data visualizations -->
@@ -196,18 +196,30 @@
             }
         }
 
-        /* Phase 4: Alerts Display */
+        /* Alerts Display */
         .alert-item {
             background: #fee;
             border-left: 4px solid #ea4335;
             padding: 15px;
             margin: 10px 0;
             border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .alert-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
         }
 
         .alert-item.warning {
             background: #fff4e5;
             border-left-color: #ff9800;
+        }
+
+        .alert-item.starred {
+            border-left-color: #ffa500;
+            background: #fffacd;
         }
 
         .alert-item h4 {
@@ -219,6 +231,49 @@
             font-size: 0.9em;
             color: #666;
             margin-top: 8px;
+        }
+
+        .alert-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.3s;
+        }
+
+        .btn-dismiss {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-dismiss:hover {
+            background: #5a6268;
+        }
+
+        .btn-star {
+            background: #ffa500;
+            color: white;
+        }
+
+        .btn-star:hover {
+            background: #ff8c00;
+        }
+
+        .btn-details {
+            background: #667eea;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-details:hover {
+            background: #5568d3;
         }
 
         /* Phase 5: Connection Status */
@@ -249,7 +304,151 @@
             margin-top: 20px;
         }
 
+        /* Device Detail Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 900px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .modal-header .device-id {
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .modal-section {
+            margin: 20px 0;
+        }
+
+        .modal-section h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .history-timeline {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .history-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 3px;
+            border-left: 3px solid #667eea;
+            font-size: 0.9em;
+        }
+
+        .location-badge {
+            display: inline-block;
+            background: #34a853;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            margin-right: 5px;
+        }
+
+        .ssid-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            margin: 2px;
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            text-align: right;
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            background: white;
+            border-radius: 10px;
+            padding: 15px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .navbar-menu {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .navbar-link {
+            color: #666;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .navbar-link:hover {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+
+        .navbar-link.active {
+            background: #667eea;
+            color: white;
+        }
+
         @media (max-width: 768px) {
+            .navbar-menu {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
             .status-grid {
                 grid-template-columns: 1fr;
             }
@@ -268,10 +467,22 @@
 </head>
 <body>
     <div class="container">
+        <!-- Navigation Bar -->
+        <div class="navbar">
+            <div class="navbar-brand">🛸 WiFi Desk Plumbus</div>
+            <div class="navbar-menu">
+                <a href="/" class="navbar-link active">Dashboard</a>
+                <a href="/devices" class="navbar-link">Devices</a>
+                <a href="/locations" class="navbar-link">Locations</a>
+                <a href="/settings" class="navbar-link">Settings</a>
+                <a href="/logout" class="navbar-link">Logout</a>
+            </div>
+        </div>
+
         <div class="header">
-            <h1>🛸 WiFi Desk Plumbus 🛸</h1>
-            <p>Everyone has one... now you do too!</p>
-            <span class="phase-badge" id="phaseBadge">Phase 5: Real-time Analytics Active! <span class="connection-indicator" id="connectionIndicator"></span></span>
+            <h1>🛸 Live Dashboard 🛸</h1>
+            <p>Real-time monitoring and analytics</p>
+            <span class="phase-badge" id="phaseBadge">Real-time Updates Active <span class="connection-indicator" id="connectionIndicator"></span></span>
         </div>
 
         <!-- Toast notification container -->
@@ -332,7 +543,7 @@
         </div>
 
         <div class="card">
-            <h2>Fingerprinting Statistics (Phase 2)</h2>
+            <h2>Device Fingerprinting Statistics</h2>
             <div id="fingerprintingLoading" class="loading">Loading fingerprinting stats...</div>
             <div id="fingerprintingContent" style="display: none;">
                 <div class="status-grid">
@@ -365,7 +576,7 @@
         </div>
 
         <div class="card">
-            <h2>Current Location (Phase 3)</h2>
+            <h2>Current Location</h2>
             <div id="locationLoading" class="loading">Loading location...</div>
             <div id="locationContent" style="display: none;">
                 <div class="status-grid">
@@ -390,7 +601,7 @@
         </div>
 
         <div class="card">
-            <h2>🚨 Following Device Alerts (Phase 4)</h2>
+            <h2>🚨 Following Device Alerts</h2>
             <div id="alertsLoading" class="loading">Loading alerts...</div>
             <div id="alertsContent" style="display: none;">
                 <div id="alertsList">
@@ -400,7 +611,7 @@
         </div>
 
         <div class="card">
-            <h2>📊 Following Detection Statistics (Phase 4)</h2>
+            <h2>📊 Following Detection Statistics</h2>
             <div id="followingLoading" class="loading">Loading following stats...</div>
             <div id="followingContent" style="display: none;">
                 <div class="status-grid">
@@ -425,7 +636,7 @@
         </div>
 
         <div class="card">
-            <h2>📈 Device Activity Timeline (Phase 5)</h2>
+            <h2>📈 Device Activity Timeline</h2>
             <div class="chart-container">
                 <canvas id="deviceActivityChart"></canvas>
             </div>
@@ -438,28 +649,97 @@
                 <li class="completed">WiFi monitor mode management</li>
                 <li class="completed">Scapy packet capture for probe requests</li>
                 <li class="completed">Network scanner for beacon frames</li>
-                <li class="completed">Basic Flask web application</li>
-                <li class="completed">SSID pool fingerprinting (Phase 2)</li>
-                <li class="completed">Jaccard similarity matching (Phase 2)</li>
-                <li class="completed">MAC randomization detection (Phase 2)</li>
-                <li class="completed">BSSID pool location fingerprinting (Phase 3)</li>
-                <li class="completed">Automatic location detection (Phase 3)</li>
-                <li class="completed">Location tracking & management (Phase 3)</li>
-                <li class="completed">Following device detection (Phase 4)</li>
-                <li class="completed">Correlation scoring & alerts (Phase 4)</li>
-                <li class="completed">Device whitelist management (Phase 4)</li>
-                <li class="completed">Real-time WebSocket updates (Phase 5)</li>
-                <li class="completed">Advanced analytics & Chart.js (Phase 5)</li>
-                <li class="completed">Live dashboard with toast notifications (Phase 5)</li>
+                <li class="completed">Flask web application with authentication</li>
+                <li class="completed">SSID pool fingerprinting</li>
+                <li class="completed">Jaccard similarity matching</li>
+                <li class="completed">MAC randomization detection</li>
+                <li class="completed">BSSID pool location fingerprinting</li>
+                <li class="completed">Automatic location detection</li>
+                <li class="completed">Location tracking & management</li>
+                <li class="completed">Following device detection</li>
+                <li class="completed">Correlation scoring & alerts</li>
+                <li class="completed">Device whitelist management</li>
+                <li class="completed">Real-time WebSocket updates</li>
+                <li class="completed">Advanced analytics & Chart.js</li>
+                <li class="completed">Live dashboard with toast notifications</li>
             </ul>
         </div>
 
         <div class="footer">
-            <p>WiFi Desk Plumbus v1.0.0 - Phase 5 (Real-time Analytics)</p>
+            <p>WiFi Desk Plumbus v1.0.0 - Surveillance Detection System</p>
             <p>Everyone has one! 🛸</p>
             <p style="margin-top: 10px; font-size: 0.9em;">
                 <em>"I always wondered how Plumbuses got made..."</em> - Interdimensional Cable
             </p>
+        </div>
+    </div>
+
+    <!-- Device Detail Modal -->
+    <div id="deviceDetailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="deviceDetailName">Device Details</h3>
+                <div class="device-id" id="deviceDetailId">-</div>
+            </div>
+            <div class="modal-body">
+                <!-- Device Info -->
+                <div class="modal-section">
+                    <h4>Device Information</h4>
+                    <div id="deviceInfo" class="status-grid">
+                        <div class="status-item">
+                            <h3>Status</h3>
+                            <p id="deviceStatus">-</p>
+                        </div>
+                        <div class="status-item">
+                            <h3>First Seen</h3>
+                            <p id="deviceFirstSeen">-</p>
+                        </div>
+                        <div class="status-item">
+                            <h3>Last Seen</h3>
+                            <p id="deviceLastSeen">-</p>
+                        </div>
+                        <div class="status-item">
+                            <h3>Total Probes</h3>
+                            <p id="deviceTotalProbes">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SSID Pool -->
+                <div class="modal-section">
+                    <h4>SSID Fingerprint Pool</h4>
+                    <div id="deviceSsidPool">
+                        <p style="color: #666;">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Location Sightings -->
+                <div class="modal-section">
+                    <h4>Location Sightings</h4>
+                    <div id="deviceLocations" class="history-timeline">
+                        <p style="color: #666;">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Probe Request History -->
+                <div class="modal-section">
+                    <h4>Recent Probe Request History</h4>
+                    <div id="deviceProbeHistory" class="history-timeline">
+                        <p style="color: #666;">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Associated Alerts -->
+                <div class="modal-section">
+                    <h4>Associated Alerts</h4>
+                    <div id="deviceAlerts" class="history-timeline">
+                        <p style="color: #666;">Loading...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-dismiss" onclick="closeDeviceDetailModal()">Close</button>
+            </div>
         </div>
     </div>
 
@@ -594,7 +874,7 @@
             document.getElementById('followingContent').style.display = 'block';
         });
 
-        // ==================== Alerts Updates (Phase 4) ====================
+        // ==================== Alerts Updates ====================
 
         socket.on('alerts_update', function(data) {
             console.log('🚨 Alerts update:', data);
@@ -610,17 +890,24 @@
                 const alertsToShow = data.alerts.slice(0, 5);
                 alertsToShow.forEach(alert => {
                     const alertDiv = document.createElement('div');
-                    alertDiv.className = 'alert-item';
+                    alertDiv.className = 'alert-item' + (alert.severity === 'high' ? ' starred' : '');
 
                     const timestamp = new Date(alert.timestamp * 1000).toLocaleString();
                     const deviceId = alert.device_id ? alert.device_id.substring(0, 8) : 'unknown';
+                    const isResolved = alert.status === 'resolved';
 
                     alertDiv.innerHTML = `
-                        <h4>${alert.alert_type.toUpperCase()}</h4>
+                        <h4>${alert.alert_type.toUpperCase()}${alert.severity === 'high' ? ' ⭐' : ''}</h4>
                         <p>${alert.message}</p>
                         <div class="alert-details">
                             Device: <strong>${deviceId}</strong> |
                             Time: ${timestamp}
+                            ${isResolved ? ' | <span style="color: #34a853;">✓ Resolved</span>' : ''}
+                        </div>
+                        <div class="alert-actions" onclick="event.stopPropagation()">
+                            ${!isResolved ? `<button class="btn btn-dismiss" onclick="dismissAlert(${alert.id})">Dismiss</button>` : ''}
+                            ${!isResolved && alert.severity !== 'high' ? `<button class="btn btn-star" onclick="starAlert(${alert.id})">⭐ Star</button>` : ''}
+                            <button class="btn btn-details" onclick="showDeviceDetail('${alert.device_id}')">View Device</button>
                         </div>
                     `;
 
@@ -740,6 +1027,165 @@
         socket.on('statistics_update', function(data) {
             updateDeviceActivityChart(data);
         });
+
+        // ==================== Alert Management Functions ====================
+
+        async function dismissAlert(alertId) {
+            try {
+                const response = await fetch(`/api/alerts/${alertId}/dismiss`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('✓ Alert dismissed', 'success', 3000);
+                    // Request updated alerts list
+                    socket.emit('request_update', { type: 'alerts' });
+                } else {
+                    showToast('Error dismissing alert', 'alert', 3000);
+                }
+            } catch (error) {
+                console.error('Error dismissing alert:', error);
+                showToast('Error: ' + error.message, 'alert', 3000);
+            }
+        }
+
+        async function starAlert(alertId) {
+            try {
+                const response = await fetch(`/api/alerts/${alertId}/star`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast('⭐ Alert starred for monitoring', 'success', 3000);
+                    // Request updated alerts list
+                    socket.emit('request_update', { type: 'alerts' });
+                } else {
+                    showToast('Error starring alert', 'alert', 3000);
+                }
+            } catch (error) {
+                console.error('Error starring alert:', error);
+                showToast('Error: ' + error.message, 'alert', 3000);
+            }
+        }
+
+        // ==================== Device Detail Modal ====================
+
+        async function showDeviceDetail(deviceId) {
+            try {
+                // Show modal immediately
+                document.getElementById('deviceDetailModal').classList.add('active');
+
+                // Fetch device history
+                const response = await fetch(`/api/devices/${deviceId}/history`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    showToast('Error loading device details', 'alert', 3000);
+                    closeDeviceDetailModal();
+                    return;
+                }
+
+                const device = data.device;
+
+                // Update modal header
+                document.getElementById('deviceDetailName').textContent = device.custom_name || 'Unknown Device';
+                document.getElementById('deviceDetailId').textContent = deviceId;
+
+                // Update device info
+                document.getElementById('deviceStatus').textContent = device.status || 'Unknown';
+                document.getElementById('deviceFirstSeen').textContent = device.first_seen ?
+                    new Date(device.first_seen * 1000).toLocaleString() : '-';
+                document.getElementById('deviceLastSeen').textContent = device.last_seen ?
+                    new Date(device.last_seen * 1000).toLocaleString() : '-';
+                document.getElementById('deviceTotalProbes').textContent = data.statistics.total_probes;
+
+                // Display SSID Pool
+                const ssidPoolDiv = document.getElementById('deviceSsidPool');
+                if (device.ssid_pool && device.ssid_pool.length > 0) {
+                    ssidPoolDiv.innerHTML = device.ssid_pool.map(ssid =>
+                        `<span class="ssid-badge">${ssid}</span>`
+                    ).join('');
+                } else {
+                    ssidPoolDiv.innerHTML = '<p style="color: #666;">No SSID data available</p>';
+                }
+
+                // Display Location Sightings
+                const locationsDiv = document.getElementById('deviceLocations');
+                if (data.location_sightings && data.location_sightings.length > 0) {
+                    locationsDiv.innerHTML = data.location_sightings.map(loc => `
+                        <div class="history-item">
+                            <span class="location-badge">${loc.location_name}</span>
+                            <strong>${loc.detection_count}</strong> visits
+                            <br>
+                            <small style="color: #666;">
+                                First: ${new Date(loc.first_seen * 1000).toLocaleString()} |
+                                Last: ${new Date(loc.last_seen * 1000).toLocaleString()}
+                            </small>
+                        </div>
+                    `).join('');
+                } else {
+                    locationsDiv.innerHTML = '<p style="color: #666;">No location data available</p>';
+                }
+
+                // Display Probe Request History
+                const probeHistoryDiv = document.getElementById('deviceProbeHistory');
+                if (data.probe_history && data.probe_history.length > 0) {
+                    probeHistoryDiv.innerHTML = data.probe_history.map(probe => `
+                        <div class="history-item">
+                            <strong>${new Date(probe.timestamp * 1000).toLocaleString()}</strong>
+                            <br>
+                            MAC: <code>${probe.mac_address}</code>
+                            ${probe.ssid ? ` | SSID: ${probe.ssid}` : ''}
+                        </div>
+                    `).join('');
+                } else {
+                    probeHistoryDiv.innerHTML = '<p style="color: #666;">No probe history available</p>';
+                }
+
+                // Display Associated Alerts
+                const alertsDiv = document.getElementById('deviceAlerts');
+                if (data.alerts && data.alerts.length > 0) {
+                    alertsDiv.innerHTML = data.alerts.map(alert => `
+                        <div class="history-item" style="border-left-color: #ea4335;">
+                            <strong>${alert.alert_type.toUpperCase()}</strong>
+                            ${alert.severity === 'high' ? ' ⭐' : ''}
+                            <br>
+                            ${alert.message}
+                            <br>
+                            <small style="color: #666;">
+                                ${new Date(alert.timestamp * 1000).toLocaleString()}
+                                ${alert.status === 'resolved' ? ' | <span style="color: #34a853;">✓ Resolved</span>' : ''}
+                            </small>
+                        </div>
+                    `).join('');
+                } else {
+                    alertsDiv.innerHTML = '<p style="color: #666;">No alerts for this device</p>';
+                }
+
+            } catch (error) {
+                console.error('Error loading device details:', error);
+                showToast('Error loading device details: ' + error.message, 'alert', 3000);
+                closeDeviceDetailModal();
+            }
+        }
+
+        function closeDeviceDetailModal() {
+            document.getElementById('deviceDetailModal').classList.remove('active');
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('deviceDetailModal');
+            if (event.target === modal) {
+                closeDeviceDetailModal();
+            }
+        };
 
         // ==================== Initialization ====================
 

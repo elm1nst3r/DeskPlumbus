@@ -112,14 +112,14 @@ check_monitor_mode_support() {
 ###############################################################################
 
 step_system_update() {
-    log_step "Step 1/8: Updating system packages..."
+    log_step "Step 1/9: Updating system packages..."
 
     sudo apt update
     log_info "System package list updated"
 }
 
 step_install_dependencies() {
-    log_step "Step 2/8: Installing system dependencies..."
+    log_step "Step 2/9: Installing system dependencies..."
 
     local packages=(
         "python3"
@@ -138,7 +138,7 @@ step_install_dependencies() {
 }
 
 step_create_venv() {
-    log_step "Step 3/8: Creating Python virtual environment..."
+    log_step "Step 3/9: Creating Python virtual environment..."
 
     if [[ -d "$VENV_DIR" ]]; then
         log_warn "Virtual environment already exists, removing..."
@@ -150,7 +150,7 @@ step_create_venv() {
 }
 
 step_install_python_packages() {
-    log_step "Step 4/8: Installing Python packages..."
+    log_step "Step 4/9: Installing Python packages..."
 
     source "$VENV_DIR/bin/activate"
 
@@ -170,7 +170,7 @@ step_install_python_packages() {
 }
 
 step_create_directories() {
-    log_step "Step 5/8: Creating project directories..."
+    log_step "Step 5/9: Creating project directories..."
 
     mkdir -p "$PROJECT_DIR/data"
     mkdir -p "$PROJECT_DIR/logs"
@@ -180,8 +180,43 @@ step_create_directories() {
     log_info "Project directories created"
 }
 
+step_setup_environment() {
+    log_step "Step 6/9: Setting up environment configuration (Phase 6)..."
+
+    if [[ ! -f "$PROJECT_DIR/.env" ]]; then
+        if [[ -f "$PROJECT_DIR/.env.example" ]]; then
+            log_info "Creating .env file from template..."
+            cp "$PROJECT_DIR/.env.example" "$PROJECT_DIR/.env"
+
+            # Generate random secret key
+            local secret_key=$(openssl rand -hex 32)
+            sed -i "s/SECRET_KEY=.*/SECRET_KEY=$secret_key/" "$PROJECT_DIR/.env"
+
+            log_info "Environment file created (.env)"
+            log_warn "Default password is 'plumbus123' - change it in .env file!"
+        else
+            log_warn ".env.example not found, skipping environment setup"
+        fi
+    else
+        log_info "Environment file already exists"
+    fi
+}
+
+step_initialize_database() {
+    log_step "Step 7/9: Initializing database..."
+
+    source "$VENV_DIR/bin/activate"
+
+    # Initialize database with schema and indexes
+    python3 -c "from app.database import PlumbusDatabase; db = PlumbusDatabase(); db.init_schema()"
+
+    deactivate
+
+    log_info "Database initialized with Phase 6 performance indexes"
+}
+
 step_configure_monitor_mode() {
-    log_step "Step 6/8: Configuring WiFi monitor mode..."
+    log_step "Step 8/9: Configuring WiFi monitor mode..."
 
     log_info "Testing monitor mode setup..."
 
@@ -202,7 +237,7 @@ step_configure_monitor_mode() {
 }
 
 step_install_service() {
-    log_step "Step 7/8: Installing systemd service..."
+    log_step "Step 9/9: Installing systemd service (Phase 6)..."
 
     if [[ ! -f "$PROJECT_DIR/$SERVICE_FILE" ]]; then
         log_error "Service file $SERVICE_FILE not found!"
@@ -224,14 +259,13 @@ step_install_service() {
     sudo systemctl enable "$SERVICE_NAME.service"
 
     log_info "Systemd service installed and enabled"
-}
 
-step_configure_firewall() {
-    log_step "Step 8/8: Configuring firewall..."
-
+    # Configure firewall if UFW is available
     if command -v ufw &> /dev/null; then
-        # Allow Flask port
-        sudo ufw allow 5000/tcp comment "Plumbus Web Interface"
+        log_info "Configuring firewall..."
+
+        # Allow Flask port (Phase 6: port 5001)
+        sudo ufw allow 5001/tcp comment "Plumbus Web Interface"
 
         # Enable firewall if not already enabled
         if ! sudo ufw status | grep -q "Status: active"; then
@@ -239,10 +273,10 @@ step_configure_firewall() {
             echo "y" | sudo ufw enable
         fi
 
-        log_info "Firewall configured (port 5000 allowed)"
+        log_info "Firewall configured (port 5001 allowed)"
     else
         log_warn "UFW not installed, skipping firewall configuration"
-        log_info "Install UFW with: sudo apt install ufw"
+        log_info "Install UFW later with: sudo apt install ufw"
     fi
 }
 
@@ -277,8 +311,18 @@ EOF
     echo ""
 
     echo "4. Access the web interface:"
-    echo -e "   ${GREEN}http://raspberrypi.local:5000${NC}"
-    echo -e "   ${GREEN}http://localhost:5000${NC} (from same device)"
+    echo -e "   ${GREEN}http://raspberrypi.local:5001${NC}"
+    echo -e "   ${GREEN}http://localhost:5001${NC} (from same device)"
+    echo -e "   ${YELLOW}Default password: plumbus123${NC} (change in .env file)"
+    echo ""
+
+    echo -e "${BLUE}Phase 6 Features Enabled:${NC}\n"
+    echo "  ✓ Password-protected web interface"
+    echo "  ✓ Real-time WebSocket updates (2s interval)"
+    echo "  ✓ Chart.js device activity timeline"
+    echo "  ✓ Rotating log files (10MB max, 5 backups)"
+    echo "  ✓ Database performance indexes"
+    echo "  ✓ Environment configuration (.env)"
     echo ""
 
     echo -e "${BLUE}Useful Commands:${NC}\n"
@@ -286,19 +330,27 @@ EOF
     echo "  Restart service: sudo systemctl restart $SERVICE_NAME"
     echo "  Disable service: sudo systemctl disable $SERVICE_NAME"
     echo "  View app logs:   tail -f $PROJECT_DIR/logs/plumbus.log"
+    echo "  View service logs: sudo journalctl -u $SERVICE_NAME -f"
     echo ""
 
-    echo -e "${YELLOW}Important:${NC}"
-    echo "  - The service will auto-start on boot"
-    echo "  - Monitor mode will be enabled when service starts"
-    echo "  - Data is stored in: $PROJECT_DIR/data/"
-    echo "  - Logs are stored in: $PROJECT_DIR/logs/"
+    echo -e "${YELLOW}Configuration:${NC}"
+    echo "  - Edit settings: nano $PROJECT_DIR/.env"
+    echo "  - Change password: Edit WEB_PASSWORD in .env"
+    echo "  - After changes: sudo systemctl restart $SERVICE_NAME"
+    echo ""
+
+    echo -e "${YELLOW}Data Storage:${NC}"
+    echo "  - Database: $PROJECT_DIR/data/tracker.db"
+    echo "  - Logs: $PROJECT_DIR/logs/"
+    echo "  - Log rotation: Automatic (10MB max)"
+    echo "  - Monitor mode: Enabled on service start"
     echo ""
 
     echo -e "${YELLOW}Security Reminder:${NC}"
     echo "  - This device is for PERSONAL security awareness only"
     echo "  - Do NOT use for surveillance of others"
     echo "  - Comply with local privacy laws"
+    echo "  - Change default password immediately!"
     echo ""
 }
 
@@ -318,15 +370,16 @@ main() {
     check_wifi_interface
     check_monitor_mode_support
 
-    # Installation steps
+    # Installation steps (Phase 6)
     step_system_update
     step_install_dependencies
     step_create_venv
     step_install_python_packages
     step_create_directories
+    step_setup_environment
+    step_initialize_database
     step_configure_monitor_mode
     step_install_service
-    step_configure_firewall
 
     # Complete
     print_completion_message

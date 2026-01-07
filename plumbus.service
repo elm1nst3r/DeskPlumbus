@@ -1,7 +1,7 @@
 [Unit]
-Description=WiFi Desk Plumbus - Surveillance Detection Service
+Description=WiFi Desk Plumbus - Surveillance Detection Service (Phase 6)
 Documentation=https://github.com/elm1nst3r/DeskPlumbus
-After=network.target
+After=network.target network-online.target
 Wants=network-online.target
 
 [Service]
@@ -10,36 +10,85 @@ User={USER}
 Group={USER}
 WorkingDirectory={PROJECT_DIR}
 
-# Environment variables
+# Environment configuration
 Environment="PATH={PROJECT_DIR}/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="PYTHONUNBUFFERED=1"
 Environment="FLASK_ENV=production"
+Environment="FLASK_DEBUG=False"
 
-# Service execution
-ExecStartPre=/bin/sleep 10
+# Load environment variables from .env file (Phase 6)
+EnvironmentFile=-{PROJECT_DIR}/.env
+
+# WiFi monitor mode setup (requires sudo/root)
+ExecStartPre=/bin/sleep 5
 ExecStartPre=/bin/bash -c 'sudo /sbin/ip link set wlan0 down || true'
 ExecStartPre=/bin/bash -c 'sudo /sbin/iw dev wlan0 set type monitor || true'
 ExecStartPre=/bin/bash -c 'sudo /sbin/ip link set wlan0 up || true'
+ExecStartPre=/bin/bash -c 'sleep 2'
+
+# Start the Plumbus Sentinel
 ExecStart={PROJECT_DIR}/venv/bin/python3 {PROJECT_DIR}/run.py
+
+# Cleanup on stop (restore managed mode)
+ExecStopPost=/bin/bash -c 'sudo /sbin/ip link set wlan0 down || true'
+ExecStopPost=/bin/bash -c 'sudo /sbin/iw dev wlan0 set type managed || true'
+ExecStopPost=/bin/bash -c 'sudo /sbin/ip link set wlan0 up || true'
 
 # Restart policy
 Restart=on-failure
 RestartSec=10
-StartLimitInterval=200
+StartLimitInterval=300
 StartLimitBurst=5
+
+# Kill policy
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
 
 # Logging
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=plumbus
 
-# Resource limits (important for Pi Zero W)
+# Resource limits (optimized for Pi Zero W)
+# Pi Zero W has 512MB RAM, limit service to 256MB
 MemoryLimit=256M
+MemoryHigh=200M
+
+# Limit CPU usage to prevent thermal issues on Pi Zero
 CPUQuota=50%
 
-# Security hardening (optional)
+# I/O priority (nice for background service)
+Nice=5
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+
+# Security hardening (Phase 6)
+# Uncomment these for additional security (may require adjustments)
+
+# Prevent privilege escalation
 # NoNewPrivileges=true
+
+# Private temporary directory
 # PrivateTmp=true
+
+# Protect system directories
+# ProtectSystem=strict
+# ReadWritePaths={PROJECT_DIR}/data {PROJECT_DIR}/logs
+
+# Protect home directory
+# ProtectHome=true
+
+# Restrict network access to only what's needed
+# RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+
+# Restrict system calls
+# SystemCallFilter=@system-service
+# SystemCallFilter=~@privileged @resources
+
+# Capabilities needed for raw socket access
+# AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+# CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
 
 [Install]
 WantedBy=multi-user.target

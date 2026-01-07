@@ -106,8 +106,8 @@ chmod +x install.sh
 ./install.sh
 
 # 3. Access the web interface
-# From same device: http://localhost:5000
-# From other devices: http://raspberrypi.local:5000
+# From same device: http://localhost:5001
+# From other devices: http://raspberrypi.local:5001
 ```
 
 The installer will:
@@ -155,7 +155,7 @@ sudo systemctl enable plumbus.service
 sudo systemctl start plumbus.service
 
 # Configure firewall
-sudo ufw allow 5000/tcp
+sudo ufw allow 5001/tcp
 sudo ufw enable
 ```
 
@@ -167,9 +167,16 @@ sudo ufw enable
 
 Once installed and running, access the web interface:
 
-- **Local**: http://localhost:5000
-- **Network**: http://raspberrypi.local:5000
-- **IP**: http://[PI_IP_ADDRESS]:5000
+- **Local**: http://localhost:5001
+- **Network**: http://raspberrypi.local:5001
+- **IP**: http://[PI_IP_ADDRESS]:5001
+
+The web interface features:
+- **Real-time updates** via WebSocket (no page refreshes needed)
+- **Live device activity chart** showing devices, probes, and networks
+- **Toast notifications** for alerts and connection status
+- **Phase 4 alerts** displaying recent following device detections
+- **Interactive statistics** from all phases (1-5)
 
 ### Managing the Service
 
@@ -275,7 +282,7 @@ sudo nano /etc/ssh/sshd_config
 sudo apt install fail2ban
 
 # Configure firewall
-sudo ufw allow 5000/tcp
+sudo ufw allow 5001/tcp
 sudo ufw enable
 
 # Keep system updated
@@ -327,14 +334,14 @@ sudo python3 -c "from scapy.all import *; sniff(iface='wlan0', count=5)"
 # Check Flask is running
 sudo systemctl status plumbus
 
-# Check port 5000 is listening
-sudo netstat -tlnp | grep 5000
+# Check port 5001 is listening
+sudo netstat -tlnp | grep 5001
 
 # Check firewall
 sudo ufw status
 
 # Try local access first
-curl http://localhost:5000
+curl http://localhost:5001
 ```
 
 ## Architecture
