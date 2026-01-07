@@ -536,10 +536,20 @@ network={{
 
     def get_status(self) -> Dict:
         """Get current WiFi manager status."""
+        # Helper to convert interface to dict with enum values serialized
+        def interface_to_dict(iface):
+            if not iface:
+                return None
+            data = asdict(iface)
+            # Convert WifiMode enum to string
+            if data.get('current_mode'):
+                data['current_mode'] = data['current_mode'].value
+            return data
+
         return {
             'strategy': self.strategy.value,
-            'surveillance_interface': asdict(self.surveillance_interface) if self.surveillance_interface else None,
-            'management_interface': asdict(self.management_interface) if self.management_interface else None,
+            'surveillance_interface': interface_to_dict(self.surveillance_interface),
+            'management_interface': interface_to_dict(self.management_interface),
             'time_slicing': {
                 'monitor_duration': self.monitor_duration,
                 'managed_duration': self.managed_duration,
