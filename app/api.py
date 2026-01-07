@@ -927,7 +927,9 @@ def register_routes(app: Flask):
         try:
             import csv
             import io
+            import json
             from flask import make_response
+            from datetime import datetime
 
             db = get_db()
             devices = db.get_all_devices()
@@ -937,19 +939,32 @@ def register_routes(app: Flask):
             writer = csv.writer(output)
 
             # Write header
-            writer.writerow(['Fingerprint ID', 'Custom Name', 'Status', 'SSID Count', 'MAC Addresses', 'First Seen', 'Last Seen', 'Detection Count'])
+            writer.writerow(['Fingerprint ID', 'Custom Name', 'Status', 'Confidence', 'SSIDs', 'MAC Addresses', 'First Seen', 'Last Seen'])
 
             # Write data
             for device in devices:
+                # Parse SSID pool and MAC addresses (they're stored as JSON)
+                try:
+                    ssid_pool = json.loads(device.get('ssid_pool', '[]')) if device.get('ssid_pool') else []
+                    ssid_str = ', '.join(ssid_pool) if ssid_pool else 'None'
+                except:
+                    ssid_str = 'None'
+
+                try:
+                    mac_addresses = json.loads(device.get('mac_addresses', '[]')) if device.get('mac_addresses') else []
+                    mac_str = ', '.join(mac_addresses) if mac_addresses else 'None'
+                except:
+                    mac_str = 'None'
+
                 writer.writerow([
-                    device['fingerprint_id'],
+                    device.get('fingerprint_id', 'Unknown'),
                     device.get('custom_name') or 'Unknown Device',
-                    device['status'],
-                    device['ssid_count'],
-                    device['mac_count'],
+                    device.get('status', 'neutral'),
+                    f"{device.get('confidence', 0):.2f}" if device.get('confidence') else '0.00',
+                    ssid_str,
+                    mac_str,
                     datetime.fromtimestamp(device['first_seen']).strftime('%Y-%m-%d %H:%M:%S') if device.get('first_seen') else '',
-                    datetime.fromtimestamp(device['last_seen']).strftime('%Y-%m-%d %H:%M:%S') if device.get('last_seen') else '',
-                    device['detection_count']
+                    datetime.fromtimestamp(device['last_seen']).strftime('%Y-%m-%d %H:%M:%S') if device.get('last_seen') else ''
                 ])
 
             # Create response
@@ -970,27 +985,47 @@ def register_routes(app: Flask):
         try:
             import csv
             import io
+            import json
             from flask import make_response
+            from datetime import datetime
 
             db = get_db()
-            locations = db.get_all_locations()
+
+            # Get locations directly from database
+            with db.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT location_id, name, category, first_seen, last_seen,
+                           total_visits, network_fingerprint
+                    FROM locations
+                    ORDER BY last_seen DESC
+                """)
+                locations = cursor.fetchall()
 
             # Create CSV in memory
             output = io.StringIO()
             writer = csv.writer(output)
 
             # Write header
-            writer.writerow(['Location ID', 'Name', 'BSSID Count', 'First Detected', 'Last Detected', 'Detection Count'])
+            writer.writerow(['Location ID', 'Name', 'Category', 'Networks', 'First Seen', 'Last Seen', 'Total Visits'])
 
             # Write data
             for location in locations:
+                # Parse network fingerprint to count BSSIDs
+                try:
+                    fingerprint = json.loads(location[6]) if location[6] else {}
+                    network_count = len(fingerprint.get('bssids', []))
+                except:
+                    network_count = 0
+
                 writer.writerow([
-                    location['location_id'],
-                    location['name'],
-                    location['bssid_count'],
-                    datetime.fromtimestamp(location['first_detected']).strftime('%Y-%m-%d %H:%M:%S'),
-                    datetime.fromtimestamp(location['last_detected']).strftime('%Y-%m-%d %H:%M:%S'),
-                    location['detection_count']
+                    location[0],  # location_id
+                    location[1] or 'Unnamed Location',  # name
+                    location[2] or 'other',  # category
+                    network_count,
+                    datetime.fromtimestamp(location[3]).strftime('%Y-%m-%d %H:%M:%S') if location[3] else '',  # first_seen
+                    datetime.fromtimestamp(location[4]).strftime('%Y-%m-%d %H:%M:%S') if location[4] else '',  # last_seen
+                    location[5] or 0  # total_visits
                 ])
 
             # Create response
@@ -1012,6 +1047,7 @@ def register_routes(app: Flask):
             import csv
             import io
             from flask import make_response
+            from datetime import datetime
 
             db = get_db()
 
@@ -1060,6 +1096,7 @@ def register_routes(app: Flask):
             import csv
             import io
             from flask import make_response
+            from datetime import datetime
 
             db = get_db()
 
@@ -1109,6 +1146,7 @@ def register_routes(app: Flask):
             import csv
             import io
             from flask import make_response
+            from datetime import datetime
 
             db = get_db()
 
