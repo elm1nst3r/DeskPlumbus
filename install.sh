@@ -181,7 +181,7 @@ step_create_directories() {
 }
 
 step_setup_environment() {
-    log_step "Step 6/9: Setting up environment configuration (Phase 6)..."
+    log_step "Step 6/9: Setting up environment configuration..."
 
     if [[ ! -f "$PROJECT_DIR/.env" ]]; then
         if [[ -f "$PROJECT_DIR/.env.example" ]]; then
@@ -193,7 +193,7 @@ step_setup_environment() {
             sed -i "s/SECRET_KEY=.*/SECRET_KEY=$secret_key/" "$PROJECT_DIR/.env"
 
             log_info "Environment file created (.env)"
-            log_warn "Default password is 'plumbus123' - change it in .env file!"
+            log_warn "Default password is 'plumbus123' - change it in Settings after first login!"
         else
             log_warn ".env.example not found, skipping environment setup"
         fi
@@ -212,7 +212,7 @@ step_initialize_database() {
 
     deactivate
 
-    log_info "Database initialized with Phase 6 performance indexes"
+    log_info "Database initialized with performance indexes"
 }
 
 step_configure_monitor_mode() {
@@ -237,7 +237,7 @@ step_configure_monitor_mode() {
 }
 
 step_install_service() {
-    log_step "Step 9/9: Installing systemd service (Phase 6)..."
+    log_step "Step 9/9: Installing systemd service..."
 
     if [[ ! -f "$PROJECT_DIR/$SERVICE_FILE" ]]; then
         log_error "Service file $SERVICE_FILE not found!"
@@ -264,7 +264,7 @@ step_install_service() {
     if command -v ufw &> /dev/null; then
         log_info "Configuring firewall..."
 
-        # Allow Flask port (Phase 6: port 5001)
+        # Allow Flask port 5001
         sudo ufw allow 5001/tcp comment "Plumbus Web Interface"
 
         # Enable firewall if not already enabled
@@ -313,16 +313,22 @@ EOF
     echo "4. Access the web interface:"
     echo -e "   ${GREEN}http://raspberrypi.local:5001${NC}"
     echo -e "   ${GREEN}http://localhost:5001${NC} (from same device)"
-    echo -e "   ${YELLOW}Default password: plumbus123${NC} (change in .env file)"
+    echo -e "   ${YELLOW}Default password: plumbus123${NC} (change in Settings tab)"
     echo ""
 
-    echo -e "${BLUE}Phase 6 Features Enabled:${NC}\n"
-    echo "  ✓ Password-protected web interface"
+    echo -e "${BLUE}Features Enabled:${NC}\n"
+    echo "  ✓ Password-protected web interface with change password option"
     echo "  ✓ Real-time WebSocket updates (2s interval)"
-    echo "  ✓ Chart.js device activity timeline"
+    echo "  ✓ Chart.js device activity timeline and statistics"
+    echo "  ✓ SSID fingerprinting to defeat MAC randomization"
+    echo "  ✓ Location detection via WiFi networks"
+    echo "  ✓ Following device detection across locations"
+    echo "  ✓ WiFi management (dual interface or time-sliced)"
+    echo "  ✓ E-ink display support (optional Waveshare 2.13\" HAT)"
+    echo "  ✓ Data export (CSV format)"
+    echo "  ✓ System management (logs, reboot, shutdown, mosh)"
     echo "  ✓ Rotating log files (10MB max, 5 backups)"
     echo "  ✓ Database performance indexes"
-    echo "  ✓ Environment configuration (.env)"
     echo ""
 
     echo -e "${BLUE}Useful Commands:${NC}\n"
@@ -334,9 +340,9 @@ EOF
     echo ""
 
     echo -e "${YELLOW}Configuration:${NC}"
-    echo "  - Edit settings: nano $PROJECT_DIR/.env"
-    echo "  - Change password: Edit WEB_PASSWORD in .env"
-    echo "  - After changes: sudo systemctl restart $SERVICE_NAME"
+    echo "  - Change password: Use Settings tab in web interface"
+    echo "  - Advanced settings: nano $PROJECT_DIR/.env"
+    echo "  - After .env changes: sudo systemctl restart $SERVICE_NAME"
     echo ""
 
     echo -e "${YELLOW}Data Storage:${NC}"
@@ -370,7 +376,7 @@ main() {
     check_wifi_interface
     check_monitor_mode_support
 
-    # Installation steps (Phase 6)
+    # Installation steps
     step_system_update
     step_install_dependencies
     step_create_venv
