@@ -1305,6 +1305,19 @@ def register_routes(app: Flask):
             headers = {'Accept': 'application/vnd.github.v3+json'}
 
             response = requests.get(github_api, headers=headers, timeout=10)
+
+            # Handle case where no releases exist yet
+            if response.status_code == 404:
+                return jsonify({
+                    'success': True,
+                    'current_version': current_version,
+                    'latest_version': current_version,
+                    'update_available': False,
+                    'changelog': 'No releases published yet. Using git commits for updates.',
+                    'release_url': 'https://github.com/elm1nst3r/DeskPlumbus',
+                    'no_releases': True
+                })
+
             response.raise_for_status()
 
             latest_release = response.json()
@@ -1371,13 +1384,26 @@ def register_routes(app: Flask):
                     'message': 'Not a git repository. Please update manually.'
                 }), 400
 
+            # Check for uncommitted changes
+            status_check = subprocess.run(
+                ['git', 'status', '--porcelain'],
+                cwd=project_dir,
+                capture_output=True,
+                text=True
+            )
+
+            if status_check.stdout.strip():
+                logger.warning("Uncommitted changes detected, resetting...")
+                subprocess.run(['git', 'reset', '--hard'], cwd=project_dir)
+
             # Pull latest changes
             logger.info("Pulling latest changes from GitHub...")
             pull_result = subprocess.run(
                 ['git', 'pull', 'origin', 'main'],
                 cwd=project_dir,
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=30
             )
 
             if pull_result.returncode != 0:
@@ -1386,26 +1412,39 @@ def register_routes(app: Flask):
                     'message': f'Git pull failed: {pull_result.stderr}'
                 }), 500
 
-            # Install/update dependencies
+            # Check if anything was updated
+            already_up_to_date = 'Already up to date' in pull_result.stdout
+
+            # Install/update dependencies (use venv pip if available)
             logger.info("Installing dependencies...")
+            venv_pip = os.path.join(project_dir, 'venv', 'bin', 'pip3')
+            pip_cmd = venv_pip if os.path.exists(venv_pip) else 'pip3'
+
             pip_result = subprocess.run(
-                ['pip3', 'install', '-r', 'requirements.txt'],
+                [pip_cmd, 'install', '-r', 'requirements.txt'],
                 cwd=project_dir,
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=300
             )
 
             if pip_result.returncode != 0:
                 logger.warning(f"Dependency installation had warnings: {pip_result.stderr}")
 
-            # Schedule restart (the systemd service will auto-restart)
-            logger.info("Update successful! Scheduling restart...")
+            # Prepare response message
+            if already_up_to_date:
+                message = 'Already up to date! No changes to pull.'
+                logger.info(message)
+            else:
+                message = 'Update successful! Restarting application...'
+                logger.info("Update successful! Scheduling restart...")
 
             # Return success - the client will reload after 5 seconds
             return jsonify({
                 'success': True,
-                'message': 'Update successful! Restarting application...',
-                'output': pull_result.stdout
+                'message': message,
+                'output': pull_result.stdout,
+                'already_up_to_date': already_up_to_date
             })
 
         except Exception as e:
