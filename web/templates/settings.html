@@ -536,6 +536,60 @@
                 </div>
             </div>
         </div>
+
+        <!-- E-Ink Display Card -->
+        <div class="card">
+            <h2>🖥️ E-Ink Display</h2>
+
+            <!-- Display Status -->
+            <div style="margin-bottom: 20px;">
+                <div id="einkStatus" style="padding: 15px; background: #f5f5f5; border-radius: 5px; margin-bottom: 15px;">
+                    <p style="margin: 0; color: #666;">Loading display status...</p>
+                </div>
+            </div>
+
+            <!-- Display Controls (shown only if display is available) -->
+            <div id="einkControls" style="display: none;">
+                <!-- Screen Selection -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 10px;">Current Screen:</label>
+                    <select id="screenSelect" onchange="changeScreen()" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px; font-size: 0.95em;">
+                        <option value="status">📊 Status Overview</option>
+                        <option value="alerts">🚨 Recent Alerts</option>
+                        <option value="networks">📶 WiFi Networks</option>
+                        <option value="stats">📈 Statistics</option>
+                        <option value="location">📍 Location Info</option>
+                    </select>
+                </div>
+
+                <!-- Control Buttons -->
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
+                    <button onclick="refreshDisplay()" class="btn btn-primary" style="padding: 12px;">
+                        🔄 Refresh Now
+                    </button>
+                    <button onclick="cycleScreen()" class="btn btn-secondary" style="padding: 12px;">
+                        ⏭️ Next Screen
+                    </button>
+                    <button onclick="sleepDisplay()" class="btn btn-secondary" style="padding: 12px;">
+                        😴 Sleep Display
+                    </button>
+                    <button onclick="clearDisplay()" class="btn btn-secondary" style="padding: 12px;">
+                        🧹 Clear Display
+                    </button>
+                </div>
+
+                <!-- Display Info -->
+                <div style="padding: 10px; background: #e3f2fd; border-left: 4px solid #2196F3; margin-top: 15px;">
+                    <p style="margin: 0 0 5px 0; font-size: 0.9em; color: #1976D2;">
+                        <strong>Note:</strong> E-ink displays have limited refresh cycles.
+                    </p>
+                    <p style="margin: 0; font-size: 0.85em; color: #666;">
+                        Automatic updates every <span id="refreshInterval">30</span> seconds.
+                        Manual refreshes are rate-limited to preserve display lifespan.
+                    </p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1098,11 +1152,241 @@
             }
         }
 
+        // ==================== E-Ink Display Functions ====================
+
+        async function loadEinkStatus() {
+            const statusDiv = document.getElementById('einkStatus');
+            const controlsDiv = document.getElementById('einkControls');
+            const screenSelect = document.getElementById('screenSelect');
+            const refreshIntervalSpan = document.getElementById('refreshInterval');
+
+            try {
+                const response = await fetch('/api/eink/status');
+                const data = await response.json();
+
+                if (!data.available) {
+                    statusDiv.innerHTML = `
+                        <p style="margin: 0; color: #666;">
+                            <strong>E-Ink Display:</strong> ${data.message || 'Not available'}
+                        </p>
+                        <p style="margin: 10px 0 0 0; font-size: 0.85em; color: #999;">
+                            The display is either disabled in configuration or the hardware is not detected.
+                        </p>
+                    `;
+                    controlsDiv.style.display = 'none';
+                    return;
+                }
+
+                // Display is available
+                statusDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <p style="margin: 0; color: #2e7d32;">
+                                <strong>✓ Display Active</strong>
+                            </p>
+                            <p style="margin: 5px 0 0 0; font-size: 0.85em; color: #666;">
+                                Resolution: ${data.width}×${data.height} • Refresh: ${data.refresh_interval}s
+                            </p>
+                        </div>
+                        <div style="text-align: right;">
+                            <p style="margin: 0; font-size: 0.9em; color: #666;">
+                                Current: <strong>${data.current_screen}</strong>
+                            </p>
+                        </div>
+                    </div>
+                `;
+
+                // Set current screen in select
+                screenSelect.value = data.current_screen;
+                refreshIntervalSpan.textContent = data.refresh_interval;
+
+                // Show controls
+                controlsDiv.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading e-ink status:', error);
+                statusDiv.innerHTML = `
+                    <p style="margin: 0; color: #d32f2f;">
+                        <strong>✗ Error loading display status</strong>
+                    </p>
+                    <p style="margin: 5px 0 0 0; font-size: 0.85em; color: #666;">
+                        ${error.message}
+                    </p>
+                `;
+            }
+        }
+
+        async function changeScreen() {
+            const select = document.getElementById('screenSelect');
+            const screen = select.value;
+
+            try {
+                const response = await fetch('/api/eink/screen', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ screen: screen })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    loadEinkStatus();
+                } else {
+                    alert('Failed to change screen: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error changing screen:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function refreshDisplay() {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span>Refreshing...';
+
+            try {
+                const response = await fetch('/api/eink/refresh', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    btn.innerHTML = '✓ Refreshed!';
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }, 2000);
+                } else {
+                    alert('Failed to refresh: ' + data.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error refreshing display:', error);
+                alert('Error: ' + error.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function cycleScreen() {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span>Cycling...';
+
+            try {
+                const response = await fetch('/api/eink/cycle', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    btn.innerHTML = '✓ Cycled!';
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        loadEinkStatus();
+                    }, 1000);
+                } else {
+                    alert('Failed to cycle: ' + data.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error cycling screen:', error);
+                alert('Error: ' + error.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function sleepDisplay() {
+            if (!confirm('Put the e-ink display to sleep? It will stop showing updates until refreshed.')) {
+                return;
+            }
+
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span>Sleeping...';
+
+            try {
+                const response = await fetch('/api/eink/sleep', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    btn.innerHTML = '✓ Sleeping!';
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }, 2000);
+                } else {
+                    alert('Failed to sleep: ' + data.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error sleeping display:', error);
+                alert('Error: ' + error.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function clearDisplay() {
+            if (!confirm('Clear the e-ink display to white? This is useful for cleaning the display or resetting stuck pixels.')) {
+                return;
+            }
+
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span>Clearing...';
+
+            try {
+                const response = await fetch('/api/eink/clear', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    btn.innerHTML = '✓ Cleared!';
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }, 2000);
+                } else {
+                    alert('Failed to clear: ' + data.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error clearing display:', error);
+                alert('Error: ' + error.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
         // ==================== Initialization ====================
 
         window.addEventListener('DOMContentLoaded', () => {
             loadCurrentVersion();
             loadWiFiStatus();
+            loadEinkStatus();
         });
     </script>
 </body>

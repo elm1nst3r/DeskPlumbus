@@ -371,6 +371,33 @@ WIFI_SCAN_TIMEOUT = int(os.getenv('WIFI_SCAN_TIMEOUT', 15))
 WIFI_CONNECT_TIMEOUT = int(os.getenv('WIFI_CONNECT_TIMEOUT', 30))
 
 # ===========================
+# E-Ink Display Settings
+# ===========================
+
+# Enable e-ink display (auto-detected if available)
+EINK_ENABLED = os.getenv('EINK_ENABLED', 'true').lower() == 'true'
+
+# Display refresh interval (seconds)
+# E-ink displays have limited refresh cycles, so update sparingly
+EINK_REFRESH_INTERVAL = int(os.getenv('EINK_REFRESH_INTERVAL', 30))
+
+# Display rotation (0, 90, 180, 270 degrees)
+EINK_ROTATION = int(os.getenv('EINK_ROTATION', 0))
+
+# Default screen to show on startup
+# Options: status, alerts, networks, stats, location
+EINK_DEFAULT_SCREEN = os.getenv('EINK_DEFAULT_SCREEN', 'status')
+
+# Auto-cycle through screens
+EINK_AUTO_CYCLE = os.getenv('EINK_AUTO_CYCLE', 'false').lower() == 'true'
+
+# Auto-cycle interval (seconds) - only if EINK_AUTO_CYCLE is true
+EINK_CYCLE_INTERVAL = int(os.getenv('EINK_CYCLE_INTERVAL', 60))
+
+# Sleep display after inactivity (minutes, 0 = never sleep)
+EINK_SLEEP_AFTER_MINUTES = int(os.getenv('EINK_SLEEP_AFTER_MINUTES', 0))
+
+# ===========================
 # Configuration Validation
 # ===========================
 

@@ -1617,6 +1617,243 @@ def register_routes(app: Flask):
             }), 500
 
     # ==========================================
+    # E-Ink Display Control
+    # ==========================================
+
+    @app.route('/api/eink/status')
+    @login_required
+    def api_eink_status():
+        """Get e-ink display status."""
+        try:
+            if not config.EINK_ENABLED:
+                return jsonify({
+                    'success': True,
+                    'available': False,
+                    'message': 'E-ink display disabled in configuration'
+                })
+
+            from app.eink_display import get_eink_display
+            display = get_eink_display()
+
+            if not display or not display.available:
+                return jsonify({
+                    'success': True,
+                    'available': False,
+                    'message': 'E-ink display not detected'
+                })
+
+            return jsonify({
+                'success': True,
+                'available': True,
+                'width': display.width,
+                'height': display.height,
+                'current_screen': display.current_screen.value,
+                'refresh_interval': config.EINK_REFRESH_INTERVAL,
+                'auto_cycle': config.EINK_AUTO_CYCLE,
+                'rotation': config.EINK_ROTATION
+            })
+
+        except Exception as e:
+            logger.error(f"Error getting e-ink status: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/eink/screen', methods=['POST'])
+    @login_required
+    def api_eink_change_screen():
+        """Change current display screen."""
+        try:
+            if not config.EINK_ENABLED:
+                return jsonify({
+                    'success': False,
+                    'message': 'E-ink display disabled'
+                }), 400
+
+            from app.eink_display import get_eink_display, DisplayScreen
+            display = get_eink_display()
+
+            if not display or not display.available:
+                return jsonify({
+                    'success': False,
+                    'message': 'E-ink display not available'
+                }), 404
+
+            data = request.get_json()
+            screen_name = data.get('screen')
+
+            if not screen_name:
+                return jsonify({
+                    'success': False,
+                    'message': 'Screen name required'
+                }), 400
+
+            # Validate screen name
+            try:
+                screen = DisplayScreen(screen_name)
+            except ValueError:
+                valid_screens = [s.value for s in DisplayScreen]
+                return jsonify({
+                    'success': False,
+                    'message': f'Invalid screen. Valid options: {", ".join(valid_screens)}'
+                }), 400
+
+            display.current_screen = screen
+            display.update(force=True)
+
+            return jsonify({
+                'success': True,
+                'message': f'Display changed to {screen_name}',
+                'current_screen': screen_name
+            })
+
+        except Exception as e:
+            logger.error(f"Error changing e-ink screen: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/eink/refresh', methods=['POST'])
+    @login_required
+    def api_eink_refresh():
+        """Force refresh display."""
+        try:
+            if not config.EINK_ENABLED:
+                return jsonify({
+                    'success': False,
+                    'message': 'E-ink display disabled'
+                }), 400
+
+            from app.eink_display import get_eink_display
+            display = get_eink_display()
+
+            if not display or not display.available:
+                return jsonify({
+                    'success': False,
+                    'message': 'E-ink display not available'
+                }), 404
+
+            display.update(force=True)
+
+            return jsonify({
+                'success': True,
+                'message': 'Display refreshed',
+                'current_screen': display.current_screen.value
+            })
+
+        except Exception as e:
+            logger.error(f"Error refreshing e-ink display: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/eink/cycle', methods=['POST'])
+    @login_required
+    def api_eink_cycle():
+        """Cycle to next display screen."""
+        try:
+            if not config.EINK_ENABLED:
+                return jsonify({
+                    'success': False,
+                    'message': 'E-ink display disabled'
+                }), 400
+
+            from app.eink_display import get_eink_display
+            display = get_eink_display()
+
+            if not display or not display.available:
+                return jsonify({
+                    'success': False,
+                    'message': 'E-ink display not available'
+                }), 404
+
+            display.cycle_screen()
+
+            return jsonify({
+                'success': True,
+                'message': 'Display cycled to next screen',
+                'current_screen': display.current_screen.value
+            })
+
+        except Exception as e:
+            logger.error(f"Error cycling e-ink screen: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/eink/sleep', methods=['POST'])
+    @login_required
+    def api_eink_sleep():
+        """Put display to sleep."""
+        try:
+            if not config.EINK_ENABLED:
+                return jsonify({
+                    'success': False,
+                    'message': 'E-ink display disabled'
+                }), 400
+
+            from app.eink_display import get_eink_display
+            display = get_eink_display()
+
+            if not display or not display.available:
+                return jsonify({
+                    'success': False,
+                    'message': 'E-ink display not available'
+                }), 404
+
+            display.sleep()
+
+            return jsonify({
+                'success': True,
+                'message': 'Display put to sleep'
+            })
+
+        except Exception as e:
+            logger.error(f"Error putting e-ink display to sleep: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    @app.route('/api/eink/clear', methods=['POST'])
+    @login_required
+    def api_eink_clear():
+        """Clear display to white."""
+        try:
+            if not config.EINK_ENABLED:
+                return jsonify({
+                    'success': False,
+                    'message': 'E-ink display disabled'
+                }), 400
+
+            from app.eink_display import get_eink_display
+            display = get_eink_display()
+
+            if not display or not display.available:
+                return jsonify({
+                    'success': False,
+                    'message': 'E-ink display not available'
+                }), 404
+
+            display.clear()
+
+            return jsonify({
+                'success': True,
+                'message': 'Display cleared'
+            })
+
+        except Exception as e:
+            logger.error(f"Error clearing e-ink display: {e}", exc_info=True)
+            return jsonify({
+                'success': False,
+                'message': str(e)
+            }), 500
+
+    # ==========================================
     # Health Check
     # ==========================================
 

@@ -337,6 +337,16 @@ def start_background_updates(socketio):
                 emit_following_statistics()
                 emit_recent_alerts()
 
+                # Update e-ink display if available
+                try:
+                    if config.EINK_ENABLED:
+                        from app.eink_display import get_eink_display
+                        display = get_eink_display()
+                        if display and display.available:
+                            display.update()
+                except Exception as e:
+                    logger.debug(f"E-ink display update skipped: {e}")
+
                 logger.debug(f"Background update completed (interval: {update_interval}s)")
 
             except Exception as e:

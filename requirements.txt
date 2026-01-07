@@ -62,6 +62,18 @@ psutil>=5.9.0
 requests>=2.31.0
 
 # ===========================
+# E-Ink Display (Optional)
+# ===========================
+
+# Waveshare e-Paper library for 2.13" HAT (optional hardware)
+# Install only if you have the Waveshare 2.13" e-Paper HAT
+# waveshare-epd>=1.0.0
+
+# Image processing library for e-ink display rendering
+# Required only if using e-ink display
+Pillow>=10.0.0
+
+# ===========================
 # Database (built-in to Python)
 # ===========================
 

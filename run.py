@@ -245,6 +245,46 @@ def init_wifi_manager():
         return None
 
 
+def init_eink_display():
+    """Initialize optional e-ink display."""
+    if not config.EINK_ENABLED:
+        logger.info("E-Ink display disabled in configuration")
+        return None
+
+    try:
+        from app.eink_display import initialize_eink_display
+
+        logger.info("Initializing E-Ink Display...")
+        success = initialize_eink_display()
+
+        if success:
+            from app.eink_display import get_eink_display
+            display = get_eink_display()
+
+            logger.info("✅ E-Ink Display initialized!")
+            logger.info(f"  Model: Waveshare 2.13\" e-Paper HAT")
+            logger.info(f"  Resolution: {display.width}x{display.height}")
+            logger.info(f"  Refresh Interval: {config.EINK_REFRESH_INTERVAL}s")
+            logger.info(f"  Default Screen: {config.EINK_DEFAULT_SCREEN}")
+
+            if config.EINK_AUTO_CYCLE:
+                logger.info(f"  Auto-Cycle: Enabled (every {config.EINK_CYCLE_INTERVAL}s)")
+            else:
+                logger.info(f"  Auto-Cycle: Disabled")
+
+            logger.info("🛸 Local status display active!")
+
+            return display
+        else:
+            logger.info("E-Ink display not available (web interface only)")
+            return None
+
+    except Exception as e:
+        logger.warning(f"E-Ink display initialization failed: {e}")
+        logger.info("Continuing without e-ink display (web interface only)")
+        return None
+
+
 def start_flask_server():
     """Start the Flask-SocketIO web server (Phase 5)."""
     try:
@@ -331,6 +371,11 @@ def main():
     if not wifi_manager:
         logger.warning("WiFi Manager initialization failed - continuing without WiFi management features")
 
+    # Initialize e-ink display (optional)
+    eink_display = init_eink_display()
+    if not eink_display:
+        logger.info("Continuing without e-ink display - web interface available")
+
     # Print configuration summary
     logger.info("=" * 60)
     logger.info("CONFIGURATION SUMMARY")
@@ -352,6 +397,10 @@ def main():
     logger.info(f"Logs: {config.LOG_FILE}")
     logger.info(f"WiFi Time-Slicing: {config.WIFI_MONITOR_DURATION}s monitor / {config.WIFI_MANAGED_DURATION}s managed")
     logger.info(f"WiFi AP SSID: {config.WIFI_AP_SSID}")
+    logger.info(f"E-Ink Display: {'Enabled' if eink_display else 'Disabled/Not Available'}")
+    if eink_display:
+        logger.info(f"E-Ink Refresh: {config.EINK_REFRESH_INTERVAL}s")
+        logger.info(f"E-Ink Screen: {config.EINK_DEFAULT_SCREEN}")
     logger.info("=" * 60)
     logger.info("")
 
